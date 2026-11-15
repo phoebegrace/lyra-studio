@@ -359,7 +359,14 @@ function draw(ctx,w,h,time,lines,options={}){
           const to=hasExact
             ? (Number.isFinite(exact.end)&&exact.end>from?exact.end:(line.words?.[word.index+1]?.start??end))
             : line.t+(end-line.t)*(word.index+1)/words.length;
-          const amount=Math.max(0,Math.min(1,(t-delay-from)/Math.max(.08,to-from)));
+          // One-letter sung words (especially "I" and "a") can be assigned
+          // near-zero acoustic spans. Light them at their detected onset and
+          // finish the reveal promptly instead of requiring an invisible sweep.
+          // This leaves all multi-letter words and global sync settings alone.
+          const tinyWord=/^[A-Za-z]$/.test(word.text.replace(/[“”"'.,!?]/g,''));
+          const revealStart=tinyWord?Math.max(line.t,from-.035):from;
+          const revealLength=tinyWord?.045:Math.max(.08,to-from);
+          const amount=Math.max(0,Math.min(1,(t-delay-revealStart)/revealLength));
           if(amount>0){
             ctx.save();ctx.beginPath();
             ctx.rect(x-2,y-fontSize*.7,(width+4)*amount,fontSize*1.4);ctx.clip();
