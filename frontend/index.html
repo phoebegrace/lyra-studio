@@ -106,7 +106,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
   </section>
 </div>
 </main>
-<script src="/alignment.js"></script><script src="/galaxy-template.js?v=2"></script>
+<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=2"></script>
 <script>
 const $=id=>document.getElementById(id);
 const audio=$('audio');
@@ -197,13 +197,40 @@ $('lyricImport').onchange=async e=>{const f=e.target.files?.[0];if(f){$('referen
 $('align').onclick=async()=>{
   const text=$('referenceLyrics').value.trim();
   if(!text){status('alignStatus','Paste or import your lyrics first.','error');return}
+  if(!vocals){status('alignStatus','Upload the vocals WAV in step 1 first.','error');return}
+  const cues=LyraAlignment.parseLyrics(text);
+  if(!cues.length){status('alignStatus','No lyric lines found. Paste one line per phrase.','error');return}
   try{
-    const {words,duration,approximate}=await transcribe();
-    const aligned=LyraAlignment.align(LyraAlignment.parseLyrics(text),words,duration);
-    showLyrics(aligned.lines);
-    progress(approximate?'Lyrics aligned with estimated timing. Review the timestamps and adjust them before exporting.':'Your lyrics are aligned. Review timing before exporting.',100);
-    status('alignStatus',Math.round(aligned.confidence*100)+'% of words directly matched.');
-  }catch(e){if(e.message!=='Cancelled')status('alignStatus','Could not align: '+e.message,'error')}
+    const result=await transcribe();
+    let aligned;
+    try{
+      aligned=LyraAlignment.align(cues,result.words,result.duration);
+      showLyrics(aligned.lines);
+      progress(result.approximate?'Lyrics aligned with estimated word timings. Please review them.':'Lyrics aligned. Review timings before exporting.',100);
+      status('alignStatus',Math.round(aligned.confidence*100)+'% of lyric words directly matched.');
+    }catch(matchError){
+      // No recognized text or no common words: don't discard the lyrics they provided.
+      status('alignStatus','Whisper could not match the sung words. Estimating timing from vocal activity…');
+      const {samples,duration}=await samplesFromVocals();
+      aligned=LyraAlignment.alignByActivity(cues,samples,16000,duration);
+      showLyrics(aligned.lines);
+      progress('Estimated lyric timings created. Please review and adjust them before exporting.',100);
+      status('alignStatus','Used '+aligned.method+' to estimate line positions; this is NOT exact word alignment. Your original lyrics were preserved.');
+    }
+  }catch(e){
+    if(e.message==='Cancelled')return;
+    // Even a model download / runtime failure must not block user-provided lyric timing.
+    try{
+      status('alignStatus','AI recognition was unavailable. Estimating from your vocal recording…');
+      const {samples,duration}=await samplesFromVocals();
+      const fallback=LyraAlignment.alignByActivity(cues,samples,16000,duration);
+      showLyrics(fallback.lines);
+      progress('Estimated lyric timings created. Please review and adjust them before exporting.',100);
+      status('alignStatus','AI recognition was unavailable. Timings estimated from '+fallback.method+' (not exact). Review before downloading SRT.');
+    }catch(fallbackError){
+      status('alignStatus','Could not align lyrics: '+fallbackError.message,'error');
+    }
+  }
 };
 function downloadFile(filename,body){const url=URL.createObjectURL(new Blob([body],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),15000)}
 $('saveLrc').onclick=()=>downloadFile('lyra-lyrics.lrc',LyraAlignment.toLrc(adjusted()));
