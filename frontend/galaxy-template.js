@@ -54,7 +54,16 @@ function draw(ctx,w,h,time,lines,options={}){
     if(Number.isFinite(lines[i].t)&&t>=lines[i].t)active=i;
     else break;
   }
-  const pageStart=Math.floor(Math.max(0,active)/4)*4;
+  let pageStart=Math.floor(Math.max(0,active)/4)*4;
+  // Once the fourth phrase finishes, show the next four early,
+  // including its next-line timer during any instrumental pause.
+  if(active>=0 && active%4===3 && active+1<lines.length){
+    const line=lines[active],next=lines[active+1];
+    const measured=Number(line.end);
+    const end=Number.isFinite(measured)&&measured>line.t
+      ? measured:Math.min(next.t,line.t+5);
+    if(t>=end)pageStart+=4;
+  }
   const page=lines.slice(pageStart,pageStart+4);
   const rowY=[191,302,413,524];
   const syncColor=options.highlight||'#c9b8ff';
