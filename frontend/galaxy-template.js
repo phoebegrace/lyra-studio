@@ -95,7 +95,7 @@ function draw(ctx,w,h,time,lines,options={}){
     for(let j=0;j<row.length;j++){
       const word=row[j];
       const start=line.words?.[word.index]?.start;
-      const threshold=Number.isFinite(start)?start:line.t+(end-line.t)*(word.index+.5)/words.length;
+      const threshold=Number.isFinite(start)?start:line.t; // SRT/LRC only time whole lines; never invent word-level sync.
       const spoken=t>=threshold;
       ctx.fillStyle=spoken?(options.highlight||'#c8b8ff'):'#ffffff';
       ctx.shadowColor=spoken?'rgba(177,149,255,.48)':'rgba(0,0,0,.65)';
