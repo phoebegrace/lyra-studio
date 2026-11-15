@@ -106,7 +106,7 @@ function outroIcon(ctx,kind){
     ctx.beginPath();ctx.arc(31,-12,7,-1.6,-.5);ctx.stroke();
   }
 }
-function drawOutro(ctx,t,lastEnd,duration,logo){
+function drawOutro(ctx,t,lastEnd,duration){
   const start=lastEnd+1.04;
   const finish=Math.max(duration||0,start+7.5);
   if(t<start||t>finish)return false;
@@ -115,17 +115,6 @@ function drawOutro(ctx,t,lastEnd,duration,logo){
   const fadeOut=Math.min(1,Math.max(0,(finish-t)/.78));
   const alpha=(1-Math.pow(1-fadeIn,3))*fadeOut;
   ctx.save();ctx.globalAlpha=alpha;
-  // Approved brand mark floats above the three independently appearing icons.
-  if(logo?.complete && logo.naturalWidth>0){
-    const bounce=Math.sin(Math.min(1,elapsed/.9)*Math.PI)*8;
-    ctx.shadowColor='rgba(176,95,255,.45)';ctx.shadowBlur=30;
-    ctx.drawImage(logo,310,96-bounce,660,220);
-    ctx.shadowBlur=0;
-  }else{
-    ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.font='italic 72px Georgia,serif';ctx.fillStyle='#f5edff';
-    ctx.fillText('Lyrica Studio',640,190);
-  }
   const items=[
     {kind:'like',label:'LIKE',x:325},
     {kind:'comment',label:'COMMENT',x:640},
@@ -391,32 +380,8 @@ function draw(ctx,w,h,time,lines,options={}){
   }
   // After the solo final lyric fades, show the branded call-to-action outro.
   // It is time-derived, so preview and recorded frames stay identical.
-  const isOutro=drawOutro(ctx,t,finalEnd,Number(options.duration)||0,options.logoImage);
+  const isOutro=drawOutro(ctx,t,finalEnd,Number(options.duration)||0);
 
-  // Full-length instrumental interlude branding, ending before lyrics return.
-  // Opening title takes precedence; title and logo never overlap.
-  const logo=options.logoImage;
-  if(instrumentalGap && logo?.complete && logo.naturalWidth>0 && !isOutro){
-    const beginning=instrumentalGap.from+(instrumentalGap.isOpening?2.5:.8);
-    const end=instrumentalGap.to-3.1;
-    const openingTitleIsVisible=instrumentalGap.isOpening && !!title && titleEnd>1.3;
-    if(!openingTitleIsVisible && end-beginning>=.9 && t>=beginning && t<=end){
-      const entering=Math.max(0,Math.min(1,(t-beginning)/.8));
-      const leaving=Math.max(0,Math.min(1,(end-t)/.8));
-      const eased=1-Math.pow(1-entering,3);
-      ctx.save();
-      ctx.globalAlpha=eased*leaving*.95;
-      const bob=Math.sin(t*.65)*3;
-      const boxX=405,boxY=43+bob,boxW=470,boxH=151;
-      ctx.shadowColor='rgba(162,96,255,.30)';ctx.shadowBlur=18;
-      ctx.fillStyle='rgba(9,5,24,.78)';
-      rounded(ctx,boxX,boxY,boxW,boxH,24);ctx.fill();
-      ctx.shadowBlur=0;ctx.strokeStyle='rgba(187,143,255,.43)';
-      ctx.lineWidth=1.5;ctx.stroke();
-      ctx.drawImage(logo,boxX+14,boxY+9,boxW-28,boxH-18);
-      ctx.restore();
-    }
-  }
   ctx.restore();
 }
 
