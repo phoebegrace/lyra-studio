@@ -121,6 +121,7 @@ function draw(ctx,w,h,time,lines,options={}){
   // Opening song-title card plays ONLY with the instrumental, never under
   // lyrics. Clear it three seconds before the first sung phrase appears.
   const title=String(options.songTitle||'').trim();
+  const singer=String(options.songSinger||'').trim();
   const firstStart=Number(lines[0]?.t);
   const titleEnd=Math.max(0,firstStart-3.15);
   if(title && intro===0 && Number.isFinite(firstStart) && titleEnd>1.3 && t<titleEnd){
@@ -128,7 +129,7 @@ function draw(ctx,w,h,time,lines,options={}){
     const fadeOut=Math.max(0,Math.min(1,(titleEnd-t)/.75));
     const alpha=(1-Math.pow(1-fadeIn,3))*fadeOut;
     const scale=1+.015*Math.max(0,Math.min(1,t/Math.max(1,titleEnd)));
-    ctx.save();ctx.globalAlpha=alpha;ctx.translate(640,356);ctx.scale(scale,scale);
+    ctx.save();ctx.globalAlpha=alpha;ctx.translate(640,singer?329:356);ctx.scale(scale,scale);
     let size=76;
     while(size>32){
       ctx.font='750 '+size+'px Inter,Arial,sans-serif';
@@ -138,6 +139,17 @@ function draw(ctx,w,h,time,lines,options={}){
     ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(128,90,235,.60)';ctx.shadowBlur=36;
     ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(title,0,0);
+    if(singer){
+      let subSize=31;
+      while(subSize>17){
+        ctx.font='500 '+subSize+'px Inter,Arial,sans-serif';
+        if(ctx.measureText(singer).width<1030)break;
+        subSize-=1;
+      }
+      ctx.fillStyle='rgba(232,224,255,.83)';
+      ctx.shadowColor='rgba(103,79,170,.28)';ctx.shadowBlur=12;
+      ctx.fillText(singer,0,69);
+    }
     ctx.restore();
   }
 
