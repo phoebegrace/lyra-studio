@@ -56,6 +56,20 @@ PRESETS = {
     "instrumental_full": ("ensemble", "instrumental_full"),
     "demucs_ft": ("demucs", "htdemucs_ft"),
 }
+MIN_MEMORY_BYTES = 6 * 1024 ** 3
+def memory_limit_bytes():
+    """Return cgroup memory limit, or None if not constrained."""
+    for candidate in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            raw = Path(candidate).read_text().strip()
+            if raw != "max":
+                value = int(raw)
+                if 0 < value < 2**60:
+                    return value
+        except (ValueError, OSError):
+            continue
+    return None
+
 MAX_BYTES = 100 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
 STEMS = {"vocals", "instrumental"}
@@ -65,7 +79,9 @@ SAFE_ID = re.compile(r"^[a-f0-9]{32}$")
 @app.get("/api/health")
 def health():
     """Advertise availability without claiming that model weights are installed."""
-    return {"service": "lyra-stems", "status": "ready", "available_presets": list(PRESETS)}
+    available_bytes = memory_limit_bytes()
+    suitable = available_bytes is None or available_bytes >= MIN_MEMORY_BYTES
+    return {"service": "lyra-stems", "status": "ready" if suitable else "insufficient_memory", "available_presets": list(PRESETS), "memory_limit_gb": round(available_bytes / 1024**3, 1) if available_bytes else None, "min_recommended_memory_gb": 6}
 
 
 def select_stems(folder: Path):
@@ -110,13 +126,27 @@ def run_engine(input_path: Path, result_path: Path, preset: str):
     except (OSError, subprocess.TimeoutExpired) as error:
         raise RuntimeError("Separation engine unavailable or timed out: " + str(error)) from error
     if proc.returncode:
-        raise RuntimeError("Separation engine failed: " + (proc.stderr or proc.stdout)[-600:])
+        raw = (proc.stderr or "") + "\n" + (proc.stdout or "")
+        diagnostic = [
+            line.strip() for line in raw.splitlines()
+            if any(keyword in line.lower() for keyword in (
+                "error", "traceback", "exception", "out of memory", "killed",
+                "not found", "invalid", "usage:", "failed", "cannot allocate"
+            ))
+        ]
+        details = " | ".join(diagnostic[-6:])[:1200] or "No detailed exception in engine output."
+        if proc.returncode < 0:
+            details = f"Engine terminated by signal {-proc.returncode} (possibly out of memory). " + details
+        raise RuntimeError("Separation engine failed: " + details)
     return select_stems(result_path)
 
 
 @app.post("/api/separate")
 async def separate(file: UploadFile = File(...), model: str = Form("instrumental_clean"), authorization: str | None = Header(None)):
     check_access(authorization)
+    available_bytes = memory_limit_bytes()
+    if available_bytes is not None and available_bytes < MIN_MEMORY_BYTES:
+        raise HTTPException(503, f"Insufficient Railway memory ({available_bytes / 1024**3:.1f} GB). High-quality RoFormer separation needs a larger compute instance (recommended at least 6 GB). Railway reports this service's maximum is 1 GB on the current plan. Upgrade the Railway plan or run the audio worker on a capable local machine; model re-downloads will not help.")
     if model not in PRESETS:
         raise HTTPException(400, "Unsupported separation preset")
     extension = Path(file.filename or "").suffix.lower()
