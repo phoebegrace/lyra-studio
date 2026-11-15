@@ -67,7 +67,11 @@ function draw(ctx,w,h,time,lines,options={}){
   }
   const line=lines[index],next=lines[index+1];
   if(next && t>=next.t){ctx.restore();return}
-  const end=Math.max(line.t+.2,next?.t||options.duration||line.t+5);
+  const explicitEnd=Number(line.end);
+  const end=Number.isFinite(explicitEnd)&&explicitEnd>line.t ? explicitEnd :
+    Math.min(next?.t ?? (line.t+5),line.t+5);
+  // Timed SRT end times also control when lyrics disappear in the exported video.
+  if(t>=end){ctx.restore();return}
   const raw=line.text.split(/\s+/).filter(Boolean);
   const words=raw.map((text,i)=>({text,index:i}));
   if(!words.length){ctx.restore();return}
