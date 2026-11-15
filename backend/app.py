@@ -1,9 +1,13 @@
-"""Single-user Lyra Studio local audio separation server."""
+"""Lyra Studio local/worker separation API.
+
+Not intended for public unauthenticated deployment. Requires a long-running
+worker with sufficient CPU/GPU RAM and persistent model cache.
+"""
 from pathlib import Path
 import os
+import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import uuid
 
@@ -12,58 +16,126 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = Path(os.environ.get("LYRA_OUTPUT_DIR", str(ROOT / "outputs")))
+OUT = Path(os.getenv("LYRA_OUTPUT_DIR", str(ROOT / "outputs")))
+MODELS = Path(os.getenv("LYRA_MODEL_DIR", str(ROOT / "models_cache")))
 OUT.mkdir(parents=True, exist_ok=True)
-app = FastAPI(title="Lyra Studio")
+MODELS.mkdir(parents=True, exist_ok=True)
+app = FastAPI(title="Lyra Studio separation backend")
+
+# Server-side allowlist. Never execute a model identifier supplied by the user.
+PRESETS = {
+    "roformer_hq": ("model", "model_bs_roformer_ep_317_sdr_12.9755.ckpt"),
+    "instrumental_clean": ("ensemble", "instrumental_clean"),
+    "instrumental_full": ("ensemble", "instrumental_full"),
+    "demucs_ft": ("demucs", "htdemucs_ft"),
+}
 MAX_BYTES = 100 * 1024 * 1024
-ALLOWED_MODELS = {"htdemucs", "htdemucs_ft"}
+ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
+STEMS = {"vocals", "instrumental"}
+SAFE_ID = re.compile(r"^[a-f0-9]{32}$")
+
+
+@app.get("/api/health")
+def health():
+    """Advertise availability without claiming that model weights are installed."""
+    return {"service": "lyra-stems", "status": "ready", "available_presets": list(PRESETS)}
+
+
+def select_stems(folder: Path):
+    """Find named audio stems without relying on model-specific full filenames."""
+    sources = {}
+    for item in sorted(folder.rglob("*.wav")):
+        name = item.stem.lower()
+        if "vocals" in name or "vocal" in name:
+            label = "instrumental" if "no_vocals" in name or "no vocal" in name else "vocals"
+        elif "instrumental" in name or "other" in name:
+            label = "instrumental"
+        else:
+            continue
+        if label in sources:
+            continue
+        sources[label] = item
+    return sources
+
+
+def run_engine(input_path: Path, result_path: Path, preset: str):
+    engine, value = PRESETS[preset]
+    if engine == "demucs":
+        args = [
+            "python", "-m", "demucs", "-n", value,
+            "--two-stems=vocals", "--out", str(result_path), str(input_path),
+        ]
+    else:
+        args = [
+            "audio-separator", str(input_path),
+            "--output_format=WAV",
+            "--output_dir", str(result_path),
+            "--model_file_dir", str(MODELS),
+            "--sample_rate", "44100",
+        ]
+        if engine == "ensemble":
+            args += ["--ensemble_preset", value]
+        else:
+            args += ["--model_filename", value]
+    try:
+        proc = subprocess.run(args, capture_output=True, text=True, check=False, timeout=3600)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError("Separation engine unavailable or timed out: " + str(error)) from error
+    if proc.returncode:
+        raise RuntimeError("Separation engine failed: " + (proc.stderr or proc.stdout)[-600:])
+    return select_stems(result_path)
 
 
 @app.post("/api/separate")
-async def separate(file: UploadFile = File(...), model: str = Form("htdemucs")):
-    if model not in ALLOWED_MODELS:
-        raise HTTPException(400, "Unsupported separation model")
-    suffix = Path(file.filename or "audio.wav").suffix.lower()
-    if suffix not in {".wav", ".mp3", ".m4a", ".flac", ".ogg"}:
-        raise HTTPException(400, "Unsupported audio format")
-    job = uuid.uuid4().hex
-    folder = OUT / job
-    folder.mkdir()
-    with tempfile.TemporaryDirectory() as tmp:
-        source = Path(tmp) / ("song" + suffix)
-        total = 0
-        with source.open("wb") as target:
-            while chunk := await file.read(1024 * 1024):
-                total += len(chunk)
-                if total > MAX_BYTES:
-                    shutil.rmtree(folder, ignore_errors=True)
-                    raise HTTPException(413, "File exceeds 100 MB")
-                target.write(chunk)
-        cmd = [sys.executable, "-m", "demucs", "-n", model, "--two-stems=vocals", "--out", str(folder), str(source)]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, check=False)
-        except (FileNotFoundError, subprocess.TimeoutExpired) as error:
-            shutil.rmtree(folder, ignore_errors=True)
-            raise HTTPException(503, f"Separation engine unavailable: {error}")
-        if result.returncode:
-            shutil.rmtree(folder, ignore_errors=True)
-            raise HTTPException(500, "Demucs failed: " + result.stderr[-700:])
-    stems = folder / model / "song"
-    if not stems.exists():
-        shutil.rmtree(folder, ignore_errors=True)
-        raise HTTPException(500, "No separated stems were produced")
-    return {"job": job, "files": {key: f"/api/download/{job}/{key}" for key in ("vocals", "no_vocals")}}
+async def separate(file: UploadFile = File(...), model: str = Form("roformer_hq")):
+    if model not in PRESETS:
+        raise HTTPException(400, "Unsupported separation preset")
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, "Supported formats are WAV, MP3, M4A, FLAC and OGG.")
+    job_id = uuid.uuid4().hex
+    job_dir = OUT / job_id
+    job_dir.mkdir(parents=True)
+    try:
+        with tempfile.TemporaryDirectory() as temp:
+            incoming = Path(temp) / ("song" + extension)
+            size = 0
+            with incoming.open("wb") as target:
+                while part := await file.read(1024 * 1024):
+                    size += len(part)
+                    if size > MAX_BYTES:
+                        raise HTTPException(413, "Audio is larger than 100 MB.")
+                    target.write(part)
+            files = run_engine(incoming, job_dir / "raw", model)
+        if not STEMS.issubset(files):
+            raise RuntimeError("The model did not produce both vocal and instrumental stems.")
+        for key in STEMS:
+            # Repack to consistent, uncompressed WAV filenames (no lossy encoding).
+            destination = job_dir / (key + ".wav")
+            shutil.move(str(files[key]), destination)
+        shutil.rmtree(job_dir / "raw", ignore_errors=True)
+        return {
+            "job": job_id,
+            "model": model,
+            "format": "WAV",
+            "files": {key: f"/api/download/{job_id}/{key}" for key in sorted(STEMS)},
+        }
+    except HTTPException:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        raise
+    except RuntimeError as error:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        raise HTTPException(503, str(error)) from error
 
 
 @app.get("/api/download/{job}/{stem}")
 def download(job: str, stem: str):
-    if len(job) != 32 or any(ch not in "0123456789abcdef" for ch in job) or stem not in {"vocals", "no_vocals"}:
-        raise HTTPException(400, "Invalid download")
-    for model in ALLOWED_MODELS:
-        path = OUT / job / model / "song" / (stem + ".wav")
-        if path.is_file():
-            return FileResponse(path, media_type="audio/wav", filename=stem + ".wav")
-    raise HTTPException(404, "Stem not found")
+    if not SAFE_ID.fullmatch(job) or stem not in STEMS:
+        raise HTTPException(400, "Invalid download request")
+    path = OUT / job / (stem + ".wav")
+    if not path.is_file():
+        raise HTTPException(404, "Audio file not found")
+    return FileResponse(path, media_type="audio/wav", filename=stem + ".wav")
 
 
 app.mount("/", StaticFiles(directory=str(ROOT / "frontend"), html=True), name="frontend")
