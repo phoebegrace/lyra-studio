@@ -44,114 +44,103 @@ function draw(ctx,w,h,time,lines,options={}){
   const t=Number.isFinite(time)?time:0;
   const galaxyT=Number.isFinite(options.galaxyTime)?options.galaxyTime:t;
   background(ctx,w,h,galaxyT);
-  const sx=w/1280,sy=h/720;
-  ctx.save();ctx.scale(sx,sy);
-  const countdown=Number(options.countdown)||0;
-  if(countdown>0){
-    ctx.font='700 142px Inter,Arial,sans-serif';
-    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.shadowColor='rgba(186,165,255,.45)';ctx.shadowBlur=35;
-    ctx.fillText(String(Math.ceil(countdown)),640,350);
-    ctx.restore();return;
-  }
+  ctx.save();ctx.scale(w/1280,h/720);
   if(!lines?.length){ctx.restore();return}
-  let index=-1;
-  for(let i=0;i<lines.length;i++){if(t>=lines[i].t)index=i;else break}
-  // Show the first upcoming lyric in white before singing starts.
-  if(index<0){
-    const upcoming=lines[0];
-    if(upcoming && upcoming.t-t<=7){
-      let fontSize=64;
-      const tokens=upcoming.text.split(/\s+/).filter(Boolean).map(text=>({text}));
-      let rows=[];
-      while(fontSize>=34){
-        ctx.font='750 '+fontSize+'px Inter,Arial,sans-serif';
-        rows=wrap(ctx,tokens,1090);
-        if(rows.length<=3)break;
-        fontSize-=3;
-      }
-      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffffff';
-      ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=16;
-      const step=fontSize*1.38;
-      rows.forEach((row,i)=>ctx.fillText(row.map(x=>x.text).join(' '),640,360-(rows.length-1)*step/2+i*step));
+
+  // Four complete sung phrases per screen. The next three phrases stay visible
+  // in white, ready before their turn. Advance to the next page every 4 lines.
+  let active=-1;
+  for(let i=0;i<lines.length;i++){
+    if(Number.isFinite(lines[i].t)&&t>=lines[i].t)active=i;
+    else break;
+  }
+  const pageStart=Math.floor(Math.max(0,active)/4)*4;
+  const page=lines.slice(pageStart,pageStart+4);
+  const rowY=[191,302,413,524];
+  const syncColor=options.highlight||'#c9b8ff';
+  const delay=Number(options.highlightDelay)||0;
+  const intro=Math.max(0,Number(options.countdown)||0);
+
+  // Determine the next phrase that has not started. We put its small
+  // countdown ABOVE the actual next phrase, never in the middle of the page.
+  let upcoming=lines.findIndex(l=>Number.isFinite(l.t)&&l.t>t);
+  if(upcoming<0)upcoming=lines.length;
+  const upcomingLocal=upcoming-pageStart;
+  let countLeft=0;
+  if(intro>0 && pageStart===0){
+    upcoming=0;countLeft=intro;
+  }else if(upcoming<lines.length){
+    const delta=lines[upcoming].t-t;
+    if(delta>0 && delta<=5)countLeft=delta;
+  }
+
+  for(let p=0;p<page.length;p++){
+    const line=page[p],absolute=pageStart+p;
+    const raw=String(line.text||'').trim().split(/\s+/).filter(Boolean);
+    if(!raw.length)continue;
+    const words=raw.map((text,index)=>({text,index}));
+    let fontSize=44,rows=[];
+    // Fit one long lyric phrase into at most two lines where possible;
+    // use a smaller font instead of clipping or covering the next stanza.
+    for(;fontSize>=20;fontSize-=2){
+      ctx.font='750 '+fontSize+'px Inter,Arial,sans-serif';
+      rows=wrap(ctx,words,1100);
+      if(rows.length<=2)break;
     }
-    ctx.restore();return;
-  }
-  const line=lines[index],next=lines[index+1];
-  if(next && t>=next.t){ctx.restore();return}
-  const explicitEnd=Number(line.end);
-  const end=Number.isFinite(explicitEnd)&&explicitEnd>line.t ? explicitEnd :
-    Math.min(next?.t ?? (line.t+5),line.t+5);
-  // In breaks, preview the upcoming line in white, without coloring it early.
-  if(t>=end){
-    if(next && next.t-t<=7){
-      let fontSize=64;
-      const tokens=next.text.split(/\s+/).filter(Boolean).map(text=>({text}));
-      let rows=[];
-      while(fontSize>=34){
-        ctx.font='750 '+fontSize+'px Inter,Arial,sans-serif';
-        rows=wrap(ctx,tokens,1090);
-        if(rows.length<=3)break;
-        fontSize-=3;
-      }
-      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffffff';
-      ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=16;
-      const step=fontSize*1.38;
-      rows.forEach((row,i)=>ctx.fillText(row.map(x=>x.text).join(' '),640,360-(rows.length-1)*step/2+i*step));
-    }
-    ctx.restore();return;
-  }
-  const raw=line.text.split(/\s+/).filter(Boolean);
-  const words=raw.map((text,i)=>({text,index:i}));
-  if(!words.length){ctx.restore();return}
-  let size=64,rows=[];
-  const maxWidth=1090;
-  while(size>=35){
-    ctx.font='750 '+size+'px Inter,Arial,sans-serif';
-    rows=wrap(ctx,words,maxWidth);
-    if(rows.length<=3 && rows.every(row=>ctx.measureText(row.map(x=>x.text).join(' ')).width<=maxWidth))break;
-    size-=3;
-  }
-  ctx.font='750 '+size+'px Inter,Arial,sans-serif';
-  ctx.textBaseline='middle';ctx.textAlign='left';
-  const leading=size*1.38,firstY=360-(rows.length-1)*leading/2;
-  for(let r=0;r<rows.length;r++){
-    const row=rows[r];
-    const lengths=row.map(word=>ctx.measureText(word.text).width);
-    const gap=ctx.measureText(' ').width;
-    const total=lengths.reduce((a,b)=>a+b,0)+(row.length-1)*gap;
-    let x=640-total/2;
-    for(let j=0;j<row.length;j++){
-      const word=row[j];
-      const explicit=line.words?.[word.index];
-      const isTimed=Number.isFinite(explicit?.start);
-      // Real word timestamps take priority; SRT-only files get a smooth visual
-      // sweep across the line. Do not mistake the sweep for measured word timing.
-      const start=isTimed?explicit.start:line.t+(end-line.t)*word.index/words.length;
-      const finish=isTimed
-        ? (Number.isFinite(explicit.end)&&explicit.end>start?explicit.end:
-          (line.words?.[word.index+1]?.start ?? end))
-        : line.t+(end-line.t)*(word.index+1)/words.length;
-      const colorTime=t-(Number(options.highlightDelay)||0);
-      const progress=Math.max(0,Math.min(1,(colorTime-start)/Math.max(.08,finish-start)));
-      const y=firstY+r*leading;
-      // Upcoming letters remain white. The chosen sync color progressively
-      // fills just the portion that has been sung.
-      ctx.fillStyle='#ffffff';
-      ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=13;
-      ctx.fillText(word.text,x,y);
-      if(progress>0){
-        ctx.save();ctx.beginPath();
-        ctx.rect(x-2,y-size*.68,(lengths[j]+4)*progress,size*1.4);ctx.clip();
-        ctx.fillStyle=options.highlight||'#c8b8ff';
-        ctx.shadowColor='rgba(177,149,255,.38)';ctx.shadowBlur=11;
+    ctx.font='750 '+fontSize+'px Inter,Arial,sans-serif';
+    const lead=fontSize*1.16;
+    const mid=rowY[p];
+    const firstY=mid-(rows.length-1)*lead/2;
+    const next=lines[absolute+1];
+    const explicitEnd=Number(line.end);
+    const inferredEnd=Math.min(next?.t ?? (line.t+5),line.t+5);
+    const end=Number.isFinite(explicitEnd)&&explicitEnd>line.t?explicitEnd:inferredEnd;
+    const isCurrent=absolute===active && t<end && intro===0;
+    const isFinished=absolute<active || (absolute===active && t>=end);
+    ctx.textBaseline='middle';ctx.textAlign='left';
+    for(let r=0;r<rows.length;r++){
+      const row=rows[r],gap=ctx.measureText(' ').width;
+      const widths=row.map(word=>ctx.measureText(word.text).width);
+      const total=widths.reduce((n,v)=>n+v,0)+(row.length-1)*gap;
+      let x=640-total/2;
+      const y=firstY+r*lead;
+      for(let j=0;j<row.length;j++){
+        const word=row[j],width=widths[j];
+        ctx.fillStyle=isFinished?'rgba(255,255,255,.40)':'#ffffff';
+        ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=12;
         ctx.fillText(word.text,x,y);
-        ctx.restore();
+        if(isCurrent){
+          const exact=line.words?.[word.index];
+          const hasExact=Number.isFinite(exact?.start);
+          // Prefer true word timestamps from the AI aligner. SRT-only tracks
+          // use an approximate visual sweep within their line time range.
+          const start=hasExact?exact.start:line.t+(end-line.t)*word.index/words.length;
+          const finish=hasExact
+            ? (Number.isFinite(exact.end)&&exact.end>start?exact.end:(line.words?.[word.index+1]?.start??end))
+            : line.t+(end-line.t)*(word.index+1)/words.length;
+          const fraction=Math.max(0,Math.min(1,(t-delay-start)/Math.max(.08,finish-start)));
+          if(fraction>0){
+            ctx.save();ctx.beginPath();
+            ctx.rect(x-2,y-fontSize*.7,(width+4)*fraction,fontSize*1.4);ctx.clip();
+            ctx.fillStyle=syncColor;ctx.shadowColor='rgba(177,149,255,.34)';ctx.shadowBlur=12;
+            ctx.fillText(word.text,x,y);ctx.restore();
+          }
+        }
+        x+=width+gap;
       }
-      x+=lengths[j]+gap;
     }
+  }
+
+  if(countLeft>0 && upcomingLocal>=0 && upcomingLocal<page.length){
+    // Compact timer at the top of the next lyric, using the same Inter type.
+    const y=rowY[upcomingLocal]-57;
+    ctx.font='750 26px Inter,Arial,sans-serif';
+    ctx.textBaseline='middle';ctx.textAlign='center';
+    ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=10;
+    ctx.fillText(String(Math.ceil(countLeft)),640,y);
   }
   ctx.restore();
 }
+
 window.LyraGalaxy={draw,period:PERIOD};
 })();
