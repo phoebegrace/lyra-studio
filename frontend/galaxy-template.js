@@ -96,7 +96,7 @@
     })();
     const activeIndex=currentIndex<0 ? 0 : currentIndex;
     const page=Math.floor(activeIndex/4)*4;
-    bg(ctx,w,h,time,options.mode,options.background);
+    bg(ctx,w,h,options.galaxyTime ?? time,options.mode,options.background);
     ctx.save();ctx.scale(scale,scale);
     // Editorial masthead, tucked away from the lyrics.
     ctx.textAlign='left';ctx.font='600 15px Inter, Arial, sans-serif';
@@ -111,7 +111,7 @@
       const line=lines[page+i],x=left+(colWidth+gap)*i+colWidth/2;
       const active=currentIndex===page+i;
       if(!line)continue;
-      const alpha=active?1:(page+i<currentIndex?.3:.62);
+      const alpha=active?1:((page+i<currentIndex)?0.28:0.66);
       const words=line.text.split(/\s+/).filter(Boolean);
       let fontSize=words.length>14?28:words.length>10?31:words.length>7?34:38;
       ctx.font='700 '+fontSize+'px Inter, Arial, sans-serif';
