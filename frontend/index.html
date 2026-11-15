@@ -161,7 +161,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
   </section>
 </div>
 </main>
-<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=10"></script>
+<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=11"></script>
 <script>
 const $=id=>document.getElementById(id);
 const audio=$('audio');
@@ -179,7 +179,7 @@ highlightInput.addEventListener('input',()=>{
 });
 
 let vocals=null,instrumental=null,lines=[],originalLines=[],worker=null,jobReject=null,epoch=0,busy=false,recording=false;
-let countdownDeadline=0,raf=0,activeCountdown=false,playingFromTimer=false;
+let countdownDeadline=0,raf=0,activeCountdown=false,playingFromTimer=false,previewEndedAt=null;
 let exportAudioCtx=null,exportSource=null,exportDestination=null;
 const status=(id,message,kind)=>{const el=$(id);el.textContent=message;el.classList.toggle('error',kind==='error')};
 const toStamp=t=>{const n=Math.max(0,t);return '['+String(Math.floor(n/60)).padStart(2,'0')+':'+String(Math.floor(n%60)).padStart(2,'0')+'.'+String(Math.round((n%1)*100)).padStart(2,'0')+']'};
@@ -193,7 +193,8 @@ const groupWords=words=>{
 const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({...l,t:Math.max(0,l.t+n),end:Number.isFinite(l.end)?Math.max(.1,l.end+n):undefined,words:l.words?.map(w=>({...w,start:Math.max(0,w.start+n),end:Number.isFinite(w.end)?Math.max(0,w.end+n):undefined}))})).sort((a,b)=>a.t-b.t)};
 function render(){
   const left=activeCountdown?Math.max(0,(countdownDeadline-performance.now())/1000):0;
-  LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,audio.currentTime||0,adjusted(),{
+  const visualTime=previewEndedAt===null?(audio.currentTime||0):(Number(audio.duration)||0)+(performance.now()-previewEndedAt)/1000;
+  LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,visualTime,adjusted(),{
     countdown:left,songTitle:$('songTitle').value.trim(),songSinger:$('songSinger').value.trim(),logoImage:brandLogoImage,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000,
     duration:audio.duration||0
   });
@@ -207,7 +208,9 @@ function setAudio(f){
   if(audio.src.startsWith('blob:'))URL.revokeObjectURL(audio.src);
   audio.src=URL.createObjectURL(f);audio.load();
 }
-function resetPreview(){activeCountdown=false;playingFromTimer=false;audio.pause();audio.currentTime=0}
+function resetPreview(){activeCountdown=false;playingFromTimer=false;previewEndedAt=null;audio.pause();audio.currentTime=0}
+audio.addEventListener('play',()=>{if(!recording)previewEndedAt=null});
+audio.addEventListener('ended',()=>{if(!recording)previewEndedAt=performance.now()});
 $('vocalFile').onchange=e=>{
   vocals=e.target.files?.[0]||null;if(!vocals)return;
   $('vocalName').textContent=vocals.name;
@@ -508,7 +511,7 @@ $('export').onclick=async()=>{
   const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));
   if(!mime){status('exportStatus','WebM export is not supported in this browser. Try Chrome.','error');return}
   const button=$('export');button.disabled=true;recording=true;resetPreview();
-  let frame=null,recorder=null,playStarted=false;
+  let frame=null,recorder=null,playStarted=false,exportEndedAt=null;
   try{
     const stream=await audioCaptureStream();
     const canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;
@@ -530,13 +533,18 @@ $('export').onclick=async()=>{
     const secs=Number($('countdown').value)||0;
     const deadline=performance.now()+secs*1000;
     const currentLines=adjusted(),duration=audio.duration||0;
+    const finalLine=currentLines[currentLines.length-1];
+    const lastEnd=Number.isFinite(finalLine.end)?finalLine.end:Math.min(duration,finalLine.t+5);
+    const exportEnd=Math.max(duration,lastEnd+8.6);
     const paint=()=>{
       const left=Math.max(0,(deadline-performance.now())/1000);
-      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,songTitle:$('songTitle').value.trim(),songSinger:$('songSinger').value.trim(),logoImage:brandLogoImage,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
+      const visualTime=exportEndedAt===null?(audio.currentTime||0):duration+(performance.now()-exportEndedAt)/1000;
+      LyraGalaxy.draw(ctx,1280,720,visualTime,currentLines,{countdown:left,duration,songTitle:$('songTitle').value.trim(),songSinger:$('songSinger').value.trim(),logoImage:brandLogoImage,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
       if(!playStarted&&left<=0){playStarted=true;audio.play().catch(e=>{status('exportStatus','Audio playback failed: '+e.message,'error');if(recorder.state!=='inactive')recorder.stop()})}
+      if(exportEndedAt!==null&&visualTime>=exportEnd){if(recorder.state!=='inactive')recorder.stop();return}
       if(recording)frame=requestAnimationFrame(paint);
     };
-    audio.addEventListener('ended',()=>{if(recorder?.state!=='inactive')recorder.stop()},{once:true});
+    audio.addEventListener('ended',()=>{exportEndedAt=performance.now()},{once:true});
     recorder.start(1000);paint();
     status('exportStatus','Recording your video in real time. Keep this tab open until the music ends.');
   }catch(e){
