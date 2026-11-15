@@ -119,9 +119,20 @@
   }
   function toLrc(lines) { return lines.map(line => stamp(line.t) + line.text).join('\n'); }
   function toSrt(lines, duration) {
-    return lines.map((line, i) => {
-      const end = Math.max(line.t + 0.2, lines[i + 1]?.t || duration || line.t + 3);
-      return (i + 1) + '\n' + stamp(line.t, true) + ' --> ' + stamp(end, true) + '\n' + line.text;
+    const cues = lines.filter(x => Number.isFinite(x.t) && x.text?.trim()).sort((a,b)=>a.t-b.t);
+    return cues.map((line,i) => {
+      const next = cues[i+1]?.t;
+      const start = Math.max(0,line.t);
+      const wordEnd = line.words?.reduce((v,w)=>Math.max(v,Number(w.end)||Number(w.start)||0),0);
+      const measuredEnd = Number.isFinite(line.end) && line.end > start ? line.end
+        : wordEnd > start ? wordEnd + .12
+        : start + Math.min(4.5,Math.max(1.3,line.text.trim().split(/\s+/).length*.38));
+      let end = Math.max(start + .25,Math.min(measuredEnd,start+6));
+      // Do not hold lyrics across long instrumental breaks or into the next line.
+      if(Number.isFinite(next))end = Math.min(end,Math.max(start+.1,next-.05));
+      if(Number.isFinite(duration)&&duration>start)end=Math.min(end,duration);
+      end=Math.max(start+.1,end);
+      return (i + 1) + '\n' + stamp(start,true) + ' --> ' + stamp(end,true) + '\n' + line.text;
     }).join('\n\n');
   }
   // Fallback for singing that Whisper cannot transcribe. This estimates cue positions
