@@ -170,15 +170,15 @@ async function transcribe(){
   try{
     const {samples,duration}=await samplesFromVocals();
     if(job!==epoch)throw Error('Cancelled');
-    const words=await new Promise((resolve,reject)=>{
+    const transcription=await new Promise((resolve,reject)=>{
       jobReject=reject;
-      worker=new Worker('/timing-worker.js?v=3',{type:'module'});
-      worker.onmessage=e=>{const d=e.data||{};if(d.error)reject(Error(d.error));else if(Array.isArray(d.words))resolve(d.words);else if(d.status)progress(d.status,d.percent)};
+      worker=new Worker('/timing-worker.js?v=4',{type:'module'});
+      worker.onmessage=e=>{const d=e.data||{};if(d.error)reject(Error(d.error));else if(Array.isArray(d.words))resolve({words:d.words,approximate:!!d.approximate});else if(d.status)progress(d.status,d.percent)};
       worker.onerror=e=>reject(Error(e.message||'The speech model could not load.'));
       worker.postMessage({audio:samples,model:'tiny-en'},[samples.buffer]);
     });
     if(job!==epoch)throw Error('Cancelled');
-    return {words,duration};
+    return {...transcription,duration};
   }finally{
     jobReject=null;worker?.terminate();worker=null;busy=false;
     $('generate').disabled=false;$('align').disabled=false;$('cancel').disabled=true;
@@ -189,7 +189,7 @@ function showLyrics(next){lines=next;originalLines=next;$('lrc').value=LyraAlign
 $('generate').onclick=async()=>{
   try{
     const result=await transcribe();showLyrics(groupWords(result.words));
-    progress('Timed lyrics created. You can edit the words below.',100);
+    progress(result.approximate?'Lyrics created with estimated word timing. Review and adjust the timing before exporting.':'Timed lyrics created. You can edit the words below.',100);
   }catch(e){if(e.message!=='Cancelled'){progress('Could not make lyrics: '+e.message,0);$('lyricStatus').classList.add('error')}}
 };
 $('apply').onclick=()=>{const parsed=parseLrc($('lrc').value);if(!parsed.length){status('lyricStatus','Please keep timestamps like [00:12.50] before each line.','error');return}showLyrics(parsed);status('lyricStatus','Your lyric edits are applied.');};
@@ -198,10 +198,10 @@ $('align').onclick=async()=>{
   const text=$('referenceLyrics').value.trim();
   if(!text){status('alignStatus','Paste or import your lyrics first.','error');return}
   try{
-    const {words,duration}=await transcribe();
+    const {words,duration,approximate}=await transcribe();
     const aligned=LyraAlignment.align(LyraAlignment.parseLyrics(text),words,duration);
     showLyrics(aligned.lines);
-    progress('Your lyrics are aligned. Review timing before exporting.',100);
+    progress(approximate?'Lyrics aligned with estimated timing. Review the timestamps and adjust them before exporting.':'Your lyrics are aligned. Review timing before exporting.',100);
     status('alignStatus',Math.round(aligned.confidence*100)+'% of words directly matched.');
   }catch(e){if(e.message!=='Cancelled')status('alignStatus','Could not align: '+e.message,'error')}
 };
