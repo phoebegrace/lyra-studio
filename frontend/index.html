@@ -24,6 +24,7 @@ async function probeAudioWorker(){
     if(!response.ok)throw Error('not healthy');
     const data=await response.json();
     if(data.status==='ready')node.textContent='Audio worker is online. Choose a model, enter your private processing key, then start separation.';
+    else if(data.status==='insufficient_memory')node.textContent='Audio backend is online, but Railway limits it to '+(data.memory_limit_gb||'1')+' GB RAM. High-quality RoFormer needs at least '+data.min_recommended_memory_gb+' GB; your current Railway plan caps this service at 1 GB. A plan upgrade or local processing is required.';
     else node.textContent='Audio worker is starting. Please check the Railway deployment status.';
   }catch(error){node.textContent='Railway audio worker is not available yet. Check its deployment status before processing.'}
 }
@@ -89,7 +90,7 @@ $('runSeparation').onclick=async()=> {
   const auth={Authorization:'Bearer '+key};
   try {
     const status=await fetch(api+'/api/health');
-    if(!status.ok)throw Error('Audio service is not healthy yet.');
+    if(!status.ok)throw Error('Audio service is not healthy yet.');const details=await status.json();if(details.status==='insufficient_memory')throw Error('The backend is limited to '+details.memory_limit_gb+' GB of RAM. High-quality RoFormer separation requires approximately '+details.min_recommended_memory_gb+' GB or more. Railway says your current service cannot be raised above 1 GB. Use a larger plan or local processing.');
     const r=await fetch(api+'/api/separate',{method:'POST',headers:auth,body:form});
     const type=r.headers.get('content-type')||'';
     const data=type.includes('application/json')?await r.json():{detail:'Server returned '+r.status};
