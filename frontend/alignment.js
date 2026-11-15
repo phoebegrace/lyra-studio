@@ -124,5 +124,66 @@
       return (i + 1) + '\n' + stamp(line.t, true) + ' --> ' + stamp(end, true) + '\n' + line.text;
     }).join('\n\n');
   }
-  window.LyraAlignment = { parseLyrics, align, toLrc, toSrt };
+  // Fallback for singing that Whisper cannot transcribe. This estimates cue positions
+  // from vocal energy, and MUST be reviewed: it is not speech-to-text recognition.
+  function alignByActivity(cues, audio, sampleRate, duration) {
+    if (!cues.length) throw Error('Paste or import lyrics first.');
+    if (!(audio instanceof Float32Array) || !audio.length) throw Error('Unable to analyze the vocals audio.');
+    const seconds = Number.isFinite(duration) && duration > 0 ? duration : audio.length / sampleRate;
+    const frame = Math.max(1, Math.round(sampleRate * 0.10));
+    const levels = [];
+    for (let i = 0; i < audio.length; i += frame) {
+      let sum = 0, count = 0;
+      for (let j = i; j < Math.min(audio.length, i + frame); j += 3) {sum += audio[j] * audio[j];count++;}
+      levels.push(Math.sqrt(sum / Math.max(count, 1)));
+    }
+    const sorted = levels.filter(Number.isFinite).sort((a,b) => a-b);
+    const peak = sorted.at(-1) || 0, mid = sorted[Math.floor(sorted.length * .72)] || 0;
+    const threshold = Math.max(.0015, Math.min(peak * .20, mid * .40));
+    const active = levels.map((v,i) => v >= threshold && (levels[Math.max(0,i-1)] + v + levels[Math.min(levels.length-1,i+1)]) / 3 >= threshold * .70);
+    const spans = [];
+    let opened = -1;
+    for (let i = 0; i <= active.length; i++) {
+      if (i < active.length && active[i]) {
+        if (opened < 0) opened = i;
+      } else if (opened >= 0) {
+        const a = opened * frame / sampleRate, b = Math.min(seconds, i * frame / sampleRate);
+        if (b - a >= .18) {
+          const last = spans.at(-1);
+          if (last && a - last.end < .55) last.end = b;
+          else spans.push({start:a,end:b});
+        }
+        opened = -1;
+      }
+    }
+    const significant = spans.filter(x => x.end - x.start >= .3);
+    const hasActivity = significant.length > 0 && peak > .001;
+    const intervals = hasActivity ? significant : [{start:0,end:seconds}];
+    const totalActive = intervals.reduce((sum,x) => sum + Math.max(.01,x.end-x.start),0);
+    // Keep existing genuine timestamps as-is, e.g. when a user imports an LRC.
+    const allTimed = cues.every(x => Number.isFinite(x.t) && x.t >= 0);
+    let cursor = 0;
+    const weights = cues.map(x => Math.max(1,x.text.trim().split(/\s+/).length));
+    const weightTotal = weights.reduce((a,b)=>a+b,0);
+    function point(fraction) {
+      let remaining = Math.max(0, Math.min(totalActive, fraction * totalActive));
+      for(const interval of intervals) {
+        const span = Math.max(.01, interval.end - interval.start);
+        if (remaining <= span) return Math.min(seconds, interval.start + remaining);
+        remaining -= span;
+      }
+      return Math.min(seconds, intervals.at(-1).end);
+    }
+    const result = cues.map((cue,i)=>{
+      const start = allTimed ? cue.t : point(cursor/weightTotal);
+      cursor += weights[i];
+      const finish = allTimed ? (cues[i+1]?.t ?? Math.min(seconds,start+Math.max(1,seconds/cues.length))) : point(cursor/weightTotal);
+      const tokens = cue.text.trim().split(/\s+/).filter(Boolean);
+      const length = Math.max(.2,finish-start);
+      const words = tokens.map((text,j)=>({text,start:Math.max(0,start+length*j/Math.max(1,tokens.length))}));
+      return {t:Math.max(0,Math.round(start*100)/100),text:cue.text,words};
+    });
+    return {lines:result,method:hasActivity?'vocal activity':'even spacing',confidence:0,approximate:true};
+  }
+  window.LyraAlignment = { parseLyrics, align, alignByActivity, toLrc, toSrt };
 })();
