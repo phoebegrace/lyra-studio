@@ -21,7 +21,7 @@
 <p class="transcription-helper" id="timingProgressLabel">Ready. The first run downloads an AI speech model; subsequent runs may reuse the browser cache. Singing recognition is approximate.</p><div class="mini-tools"><label class="field" style="margin:0">Import SRT / LRC <input type="file" id="lyricFile" accept=".srt,.lrc,.txt,text/plain"></label></div><div class="soft-note">Use your own lyrics. <strong>Align to vocals</strong> matches these exact words to the singing; it never replaces your text with AI guesses.</div><label class="field">Timed lyrics<textarea id="lrc" spellcheck="false" placeholder="[00:05.00]First line of your song&#10;[00:09.00]Second line of your song&#10;[00:13.00]Keep singing along"></textarea></label><div class="actions"><button class="outline" id="alignLyrics">Align supplied lyrics to vocals</button><button class="outline" id="sample">Use example lyrics</button><button class="outline" id="apply">Apply lyrics</button></div><div class="mini-tools"><label class="field" style="margin:0">Timing shift (seconds)<input id="timeShift" class="offset" type="number" value="0" min="-30" max="30" step="0.1"></label><button class="outline" id="shiftTiming">Apply shift</button><button class="outline" id="saveLrc">Download LRC</button><button class="outline" id="saveSrt">Download SRT</button></div><p class="helper">Timing is AI-estimated. Check repeated verses and harmonies before exporting.</p></div><div class="card"><h2>Appearance</h2><div class="colorrow"><label class="field">Highlight color<input type="color" id="activeColor" value="#a7a1ff"></label><label class="field">Background<input type="color" id="bgColor" value="#131d42"></label></div><div class="colorrow"><label class="field">Unsung text<input type="color" id="plainColor" value="#ffffff"></label><label class="field">Upcoming line<input type="color" id="nextColor" value="#a5aed1"></label></div></div></div><div class="stack"><div class="card"><h2>Karaoke canvas <span class="count">16:9</span></h2><div class="stage" id="videoStage"><div class="eyebrow">LYRA STUDIO · KARAOKE</div><div class="lyrics" id="videoLyrics">Your lyrics go here</div><div class="next" id="videoNext">Add timed lyrics to preview</div></div><div class="timeline"><span id="time">00:00</span><span>Syncs with studio audio</span></div><div class="actions"><button class="button" id="export">Export WebM video</button></div><div class="status" id="videoStatus">Start playback in Studio to preview lyric timing. Export uses real-time browser recording.</div></div></div></div></section>
 </main></div>
 <script src="/alignment.js"></script><script>
-const $=id=>document.getElementById(id),audio=$('audio');let file=null,vocalsFile=null,lines=[],recording=false,raf=0,generatedWords=[],timingWorker=null,timingRunning=false;
+const $=id=>document.getElementById(id),audio=$('audio');let file=null,vocalsFile=null,lines=[],recording=false,raf=0,generatedWords=[],timingWorker=null,timingRunning=false,rejectTimingJob=null,timingEpoch=0;
 const titles={studio:'Your creative studio',separate:'Separate your audio',video:'Create your lyric video'};
 function tab(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id===name));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));$('pageTitle').textContent=titles[name];$('crumb').textContent=name==='separate'?'Separate Audio':name==='video'?'Lyric Video':'Studio'}
 document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
@@ -70,12 +70,15 @@ async function transcribeForLyrics(){
   if(timingRunning)throw Error('Another lyric job is already running.');
   const source=lyricAudioSource();
   if(!source)throw Error('Upload UVR vocals-only audio above first (or select Studio audio).');
+  const epoch=++timingEpoch;
   timingRunning=true;
   $('autoTiming').disabled=true;$('alignLyrics').disabled=true;$('cancelTiming').disabled=false;
   timingProgress('Preparing audio…',0);
   try{
     const {samples,duration}=await getVocalSamples(source);
+    if(epoch!==timingEpoch)throw Error('Cancelled');
     const words=await new Promise((resolve,reject)=>{
+      rejectTimingJob=reject;
       const worker=new Worker('/timing-worker.js?v=2',{type:'module'});timingWorker=worker;
       worker.onmessage=e=>{
         const data=e.data||{};
@@ -87,14 +90,18 @@ async function transcribeForLyrics(){
       worker.onmessageerror=()=>reject(Error('The browser could not read the AI worker result.'));
       worker.postMessage({audio:samples,model:$('lyricModel').value},[samples.buffer]);
     });
+    if(epoch!==timingEpoch)throw Error('Cancelled');
     return {words,duration};
   }finally{
+    rejectTimingJob=null;
     timingWorker?.terminate();timingWorker=null;
     timingRunning=false;$('autoTiming').disabled=false;$('alignLyrics').disabled=false;$('cancelTiming').disabled=true;
   }
 }
 $('cancelTiming').onclick=()=>{
   if(!timingRunning)return;
+  timingEpoch++;
+  rejectTimingJob?.(Error('Cancelled'));
   timingWorker?.terminate();timingWorker=null;
   timingRunning=false;$('autoTiming').disabled=false;$('alignLyrics').disabled=false;$('cancelTiming').disabled=true;
   timingProgress('Cancelled. No changes made to existing lyrics.',0);
@@ -108,7 +115,7 @@ $('autoTiming').onclick=async()=>{
     timingProgress('Done! Transcribed '+result.words.length+' words. Please correct any misheard lyrics.',100);
     $('videoStatus').textContent='Generated '+lines.length+' timed lines from '+result.words.length+' detected words. Use Preview to check synchronization. Download SRT or LRC, or edit and apply corrections.';
     update();
-  }catch(error){if(timingRunning||$('timingProgressTrack').getAttribute('aria-valuenow')!=='0'){timingProgress('Could not generate lyrics: '+(error.message||error),0);$('videoStatus').textContent='Automatic lyric generation failed: '+(error.message||error)}} 
+  }catch(error){if(error?.message!=='Cancelled'){timingProgress('Could not generate lyrics: '+(error.message||error),0);$('videoStatus').textContent='Automatic lyric generation failed: '+(error.message||error)}} 
 };
 function downloadText(filename,text){const blob=new Blob([text],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000)}
 $('lyricFile').onchange=async e=>{const imported=e.target.files?.[0];if(!imported)return;try{if(imported.size>1024*1024)throw Error('Maximum lyric file size is 1 MB.');const cues=LyraAlignment.parseLyrics(await imported.text());if(!cues.length)throw Error('No lyrics were found in this file.');$('lrc').value=cues.map(l=>toLrcTime(l.t??0)+l.text).join('\n');$('videoStatus').textContent='Imported '+cues.length+' lyric lines from '+imported.name+'. Click Align supplied lyrics to retime them.';}catch(error){$('videoStatus').textContent='Import failed: '+error.message}};
@@ -122,7 +129,7 @@ $('alignLyrics').onclick=async()=>{
     timingProgress('Aligned '+aligned.matched+' of '+aligned.total+' words. Review timing.',100);
     $('videoStatus').textContent='Aligned '+aligned.total+' lyric words ('+Math.round(aligned.confidence*100)+'% directly matched). Original words preserved; review repeated choruses.';
     update();
-  }catch(error){timingProgress('Alignment failed: '+(error.message||error),0);$('videoStatus').textContent='Alignment failed: '+(error.message||error)}
+  }catch(error){if(error?.message!=='Cancelled'){timingProgress('Alignment failed: '+(error.message||error),0);$('videoStatus').textContent='Alignment failed: '+(error.message||error)}}
 };
 $('shiftTiming').onclick=()=>{if(!lines.length)return;const shift=Number($('timeShift').value);if(!Number.isFinite(shift)||shift< -30||shift>30){$('videoStatus').textContent='Enter a shift between -30 and +30 seconds.';return;}lines=lines.map(line=>({...line,t:Math.max(0,line.t+shift),words:line.words?.map(w=>({...w,start:Math.max(0,w.start+shift)}))}));$('lrc').value=LyraAlignment.toLrc(lines);$('videoStatus').textContent='Shifted timestamps by '+shift+' seconds.';update()};
 $('saveLrc').onclick=()=>{if(!lines.length){$('videoStatus').textContent='Load or align lyrics first.';return}downloadText('lyra-lyrics.lrc',LyraAlignment.toLrc(lines))};
