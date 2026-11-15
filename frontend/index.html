@@ -94,9 +94,9 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
         </div>
       </div>
       <details><summary>Already have lyrics? Paste or import them</summary>
-        <p>Paste existing lyrics, then align their timing to the vocals. Use this if AI mishears words.</p>
+        <p>Paste your correct English lyrics. The new CTC AI model aligns them to the vocal recording instead of estimating timing from volume.</p>
         <label class="field">Your lyrics<textarea id="referenceLyrics" spellcheck="false" placeholder="Paste your lyrics here, one line per phrase"></textarea></label>
-        <div class="row"><input id="lyricImport" type="file" accept=".txt,.lrc,.srt"><button class="btn secondary" id="align">Time these lyrics</button><button class="btn secondary" id="manualFromPaste">Sync by listening instead</button></div>
+        <div class="row"><input id="lyricImport" type="file" accept=".txt,.lrc,.srt"><button class="btn" id="forcedAlign">Auto-sync lyrics to vocals (AI)</button><button class="btn secondary" id="align">Whisper sync (older)</button><button class="btn secondary" id="manualFromPaste">Manual sync</button></div>
         <p id="alignStatus"></p>
       </details>
     </section>
@@ -184,7 +184,7 @@ async function samplesFromVocals(){
 async function transcribe(){
   if(busy)throw Error('A transcription is already running.');
   if(!vocals)throw Error('Add vocals in step 1 first.');
-  const job=++epoch;busy=true;$('generate').disabled=true;$('align').disabled=true;$('cancel').disabled=false;
+  const job=++epoch;busy=true;$('generate').disabled=true;$('align').disabled=true;$('forcedAlign').disabled=true;$('cancel').disabled=false;
   progress('Decoding your vocals…',2);
   try{
     const {samples,duration}=await samplesFromVocals();
@@ -200,7 +200,7 @@ async function transcribe(){
     return {...transcription,duration};
   }finally{
     jobReject=null;worker?.terminate();worker=null;busy=false;
-    $('generate').disabled=false;$('align').disabled=false;$('cancel').disabled=true;
+    $('generate').disabled=false;$('align').disabled=false;$('forcedAlign').disabled=false;$('cancel').disabled=true;
   }
 }
 $('cancel').onclick=()=>{if(!busy)return;epoch++;jobReject?.(Error('Cancelled'));worker?.terminate();worker=null;progress('Cancelled. You can start again.',0)};
@@ -330,6 +330,51 @@ $('manualFromPaste').onclick=()=>{
   showLyrics(cues.map(cue=>({t:Number.isFinite(cue.t)?cue.t:0,text:cue.text})));
   status('alignStatus','Manual sync opened. Each tap sets the exact start of the next line.');
   $('startSync').click();
+};
+$('forcedAlign').onclick=async()=>{
+  const text=$('referenceLyrics').value.trim();
+  if(!text){status('alignStatus','Paste your lyrics first, one sung phrase per line.','error');return}
+  if(!vocals){status('alignStatus','Upload your UVR vocals-only WAV in step 1 first.','error');return}
+  const cues=LyraAlignment.parseLyrics(text);
+  if(!cues.length){status('alignStatus','No valid lyrics found. Paste one line per phrase.','error');return}
+  if(busy){status('alignStatus','A sync is already running. Cancel it first.','error');return}
+  const job=++epoch;
+  busy=true;$('generate').disabled=true;$('align').disabled=true;$('forcedAlign').disabled=true;$('cancel').disabled=false;
+  progress('Preparing CTC forced alignment…',1);
+  try{
+    const {samples}=await samplesFromVocals();
+    if(job!==epoch)throw Error('Cancelled');
+    const result=await new Promise((resolve,reject)=>{
+      jobReject=reject;
+      worker=new Worker('/ctc-align-worker.js?v=1',{type:'module'});
+      worker.onmessage=e=>{
+        const data=e.data||{};
+        if(data.error)reject(Error(data.error));
+        else if(Array.isArray(data.lines))resolve(data);
+        else if(data.status)progress(data.status,data.percent);
+      };
+      worker.onerror=e=>reject(Error(e.message||'The forced-alignment model could not load.'));
+      worker.postMessage({audio:samples,cues},[samples.buffer]);
+    });
+    if(job!==epoch)throw Error('Cancelled');
+    const valid=result.lines.filter(l=>Number.isFinite(l.t)&&Number.isFinite(l.end));
+    if(valid.length!==cues.length)throw Error('The AI could not locate all lyric lines. Try a clearer vocals-only WAV.');
+    showLyrics(result.lines);
+    const unsure=result.uncertain||0;
+    const detail=unsure
+      ? 'CTC auto-sync completed, but '+unsure+' of '+result.lines.length+' lines have low acoustic confidence. Check these in preview before exporting.'
+      : 'CTC auto-sync finished. Review the lyric video preview before exporting.';
+    progress(detail,100);status('alignStatus',detail,unsure?'error':undefined);
+    $('lyricEditor').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(error){
+    if(error.message!=='Cancelled'){
+      status('alignStatus','Auto-sync could not finish: '+error.message,'error');
+      progress('CTC alignment unavailable. Original lyric timings were not replaced.',0);
+    }
+  }finally{
+    jobReject=null;worker?.terminate();worker=null;busy=false;
+    $('generate').disabled=false;$('align').disabled=false;$('forcedAlign').disabled=false;$('cancel').disabled=true;
+  }
 };
 $('align').onclick=async()=>{
   const text=$('referenceLyrics').value.trim();
