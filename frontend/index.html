@@ -103,10 +103,10 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
         </div>
       </div>
       <details open><summary>Have lyrics? Auto-sync them with AI</summary>
-        <p>Paste your correct English lyrics. The new CTC AI model aligns them to the vocal recording instead of estimating timing from volume.</p>
+        <p>Paste your correct English lyrics. The CTC AI aligns both the lyric lines and individual words to the vocals, so the karaoke color follows detected singing.</p>
         <label class="field">Your lyrics<textarea id="referenceLyrics" spellcheck="false" placeholder="Paste your lyrics here, one line per phrase"></textarea></label>
         <div class="row"><input id="lyricImport" type="file" accept=".txt,.lrc,.srt"><button class="btn" id="forcedAlign">Auto-sync lyrics to vocals (AI)</button><button class="btn secondary" id="align">Whisper sync (older)</button><button class="btn secondary" id="manualFromPaste">Manual sync</button></div>
-        <p class="detail" style="margin-top:7px">English lyrics only for this new aligner. The first run downloads an approximately 95 MB model to your browser; it may take time on a MacBook. Low-confidence lines are flagged instead of presented as guaranteed accurate.</p>
+        <p class="detail" style="margin-top:7px">English lyrics only for this new aligner. The first run downloads an approximately 95 MB model to your browser; it may take time on a MacBook. AI also creates word-level color timing. Sung vocals can be difficult to align; check any low-confidence lines before exporting.</p>
         <p id="alignStatus"></p>
       </details>
     </section>
@@ -378,7 +378,7 @@ $('forcedAlign').onclick=async()=>{
     if(job!==epoch)throw Error('Cancelled');
     const result=await new Promise((resolve,reject)=>{
       jobReject=reject;
-      worker=new Worker('/ctc-align-worker.js?v=1',{type:'module'});
+      worker=new Worker('/ctc-align-worker.js?v=2',{type:'module'});
       worker.onmessage=e=>{
         const data=e.data||{};
         if(data.error)reject(Error(data.error));
@@ -394,8 +394,8 @@ $('forcedAlign').onclick=async()=>{
     showLyrics(result.lines);
     const unsure=result.uncertain||0;
     const detail=unsure
-      ? 'CTC auto-sync completed, but '+unsure+' of '+result.lines.length+' lines have low acoustic confidence. Check these in preview before exporting.'
-      : 'CTC auto-sync finished. Review the lyric video preview before exporting.';
+      ? 'Word-level CTC auto-sync completed, but '+unsure+' of '+result.lines.length+' lines have low acoustic confidence. Check these in preview before exporting.'
+      : 'Word-level CTC auto-sync finished. The karaoke color now follows detected word starts and ends. Check the video preview before exporting.';
     progress(detail,100);status('alignStatus',detail,unsure?'error':undefined);
     $('lyricEditor').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(error){
