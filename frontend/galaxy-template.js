@@ -132,7 +132,8 @@ function draw(ctx,w,h,time,lines,options={}){
         ? (Number.isFinite(explicit.end)&&explicit.end>start?explicit.end:
           (line.words?.[word.index+1]?.start ?? end))
         : line.t+(end-line.t)*(word.index+1)/words.length;
-      const progress=Math.max(0,Math.min(1,(t-start)/Math.max(.08,finish-start)));
+      const colorTime=t-(Number(options.highlightDelay)||0);
+      const progress=Math.max(0,Math.min(1,(colorTime-start)/Math.max(.08,finish-start)));
       const y=firstY+r*leading;
       // Upcoming letters remain white. The chosen sync color progressively
       // fills just the portion that has been sung.
