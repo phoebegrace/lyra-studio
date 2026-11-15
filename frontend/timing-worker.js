@@ -60,8 +60,7 @@ self.onmessage = async (event) => {
         5 + Math.round(i / count * 90));
       const result = await transcriber(audio.subarray(begin, end), {
         return_timestamps: 'word',
-        task: 'transcribe',
-        ...(model === 'tiny-multi' ? { language: 'english' } : {}),
+        ...(model === 'tiny-multi' ? { task: 'transcribe', language: 'english' } : {}),
       });
       const section = extractWords(result, begin / 16000, (end - begin) / 16000);
       words.push(...section);
