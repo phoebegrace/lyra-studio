@@ -6,7 +6,7 @@ Personal karaoke workspace with a clean Lunatik Hub-inspired interface.
 
 - Upload and play audio locally in the browser.
 - Separate vocals and instrumentals using the Demucs 4 two-stem model.
-- Paste timed LRC lines and preview approximate word-by-word highlight colors.
+- Automatically transcribe uploaded vocals into word-level timestamps in the browser with a Whisper Tiny model, or paste timed LRC lines.
 - Customize karaoke canvas colors and export a real-time WebM video in a compatible browser.
 
 ## Run locally
@@ -27,7 +27,7 @@ Visit http://localhost:8000 in Chrome. For WebM audio export, browser capture su
 1. Open Studio and select a song.
 2. Open Separate Audio to produce downloadable WAV stems (optional).
 3. To create a karaoke video with the instrumental, upload the downloaded instrumental as the new song.
-4. Open Lyric Video and paste LRC lines, e.g. `[00:03.20]First line of lyrics`.
+4. Open Lyric Video and click **Generate timed lyrics** to run browser-side AI transcription, or paste LRC lines like `[00:03.20]First line of lyrics`.
 5. Apply lyrics and customize the karaoke colors.
 6. Export WebM in real time; keep the page open until the song ends.
 
@@ -35,7 +35,7 @@ Visit http://localhost:8000 in Chrome. For WebM audio export, browser capture su
 
 - This is a local, single-user prototype and is **not safe to host publicly** without authentication, server job queues, storage cleanup, and resource quotas.
 - Audio separation may take minutes and may not be perfect. On Apple Silicon, processing speed depends on local PyTorch support.
-- Lyrics are manually supplied; automatic transcription and exact word-level timing are not implemented. Highlight timing is an approximation.
-- Video export is WebM, not MP4, and browser support varies. The exporter is experimental; test with short clips first.
+- Automatic transcription with Whisper Tiny is experimental and may produce incorrect words or timings for singing, harmonies or noisy recordings. It downloads a model on first use and can be slow on laptops. When LRC text is edited and applied, timing falls back to approximate per-line highlighting.
+- Audio never needs to leave the browser for timing, though model files are downloaded from Hugging Face. Video export is WebM, not MP4, and browser support varies. The exporter is experimental; test with short clips first.
 - The browser audio-export code is experimental, so audio recording behavior can vary by browser and repeated exports may require reloading the page.
 - Do not upload music or lyrics unless you have appropriate rights to use them.
