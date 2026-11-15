@@ -1,6 +1,6 @@
-# Lyra Studio
+# Lyrica Studio
 
-Personal karaoke workspace with a clean Lunatik Hub-inspired interface.
+Personal karaoke workspace for syncing lyrics and creating karaoke videos.
 
 ## Features
 
@@ -52,7 +52,7 @@ This is heuristic word matching, **not precise forced alignment**. Missing and m
 
 ## Cloud separation (Vercel + Railway)
 
-The Vercel deployment serves only the browser UI. The dedicated **Lyra Studio Audio**
+The Vercel deployment serves only the browser UI. The dedicated **Lyrica Studio Audio**
 Railway service exposes the protected separation API:
 `https://lyra-audio-worker-production.up.railway.app`.
 
