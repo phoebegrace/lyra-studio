@@ -93,10 +93,11 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
           <div class="message" id="syncStatus">Use this if the AI's timestamps are wrong. Spacebar also marks the next line while syncing.</div>
         </div>
       </div>
-      <details><summary>Already have lyrics? Paste or import them</summary>
+      <details open><summary>Have lyrics? Auto-sync them with AI</summary>
         <p>Paste your correct English lyrics. The new CTC AI model aligns them to the vocal recording instead of estimating timing from volume.</p>
         <label class="field">Your lyrics<textarea id="referenceLyrics" spellcheck="false" placeholder="Paste your lyrics here, one line per phrase"></textarea></label>
         <div class="row"><input id="lyricImport" type="file" accept=".txt,.lrc,.srt"><button class="btn" id="forcedAlign">Auto-sync lyrics to vocals (AI)</button><button class="btn secondary" id="align">Whisper sync (older)</button><button class="btn secondary" id="manualFromPaste">Manual sync</button></div>
+        <p class="detail" style="margin-top:7px">English lyrics only for this new aligner. The first run downloads an approximately 95 MB model to your browser; it may take time on a MacBook. Low-confidence lines are flagged instead of presented as guaranteed accurate.</p>
         <p id="alignStatus"></p>
       </details>
     </section>
