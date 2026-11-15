@@ -75,6 +75,11 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
     <section class="card">
       <div class="stephead"><span class="number">02</span><div><h2>Get timed lyrics</h2><p class="detail">Whisper AI detects singing and suggests line timings. Review before exporting.</p></div></div>
       <div class="row"><button class="btn" id="generate">Generate timed lyrics</button><button class="btn secondary" id="cancel" disabled>Cancel</button></div>
+      <label class="pick" for="timedImport" style="margin-top:12px">
+        <strong>Import synced SRT or LRC</strong><span id="timedName">Use exact line timings in video</span>
+        <input type="file" id="timedImport" accept=".srt,.lrc,.vtt,.txt">
+      </label>
+      <p class="detail" style="margin-top:7px">Already synced in Sync Lab? Import the audio-timed subtitle file here. No AI rerun needed. The karaoke video will follow its timestamps.</p>
       <div class="progress" role="progressbar" aria-label="Lyric generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressTrack"><div id="progressFill"></div></div>
       <div class="message" id="lyricStatus" role="status">Upload vocals, then click Generate.</div>
       <div id="lyricEditor" class="hidden" style="margin-top:13px">
@@ -136,7 +141,7 @@ const groupWords=words=>{
   if(group.length)groups.push(group);
   return groups.map(g=>({t:g[0].start,end:g[g.length-1].end,text:g.map(w=>w.text).join(' '),words:g}));
 };
-const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({...l,t:Math.max(0,l.t+n),words:l.words?.map(w=>({...w,start:Math.max(0,w.start+n)}))})).sort((a,b)=>a.t-b.t)};
+const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({...l,t:Math.max(0,l.t+n),end:Number.isFinite(l.end)?Math.max(.1,l.end+n):undefined,words:l.words?.map(w=>({...w,start:Math.max(0,w.start+n),end:Number.isFinite(w.end)?Math.max(0,w.end+n):undefined}))})).sort((a,b)=>a.t-b.t)};
 function render(){
   const left=activeCountdown?Math.max(0,(countdownDeadline-performance.now())/1000):0;
   LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,audio.currentTime||0,adjusted(),{
@@ -199,6 +204,42 @@ async function transcribe(){
   }
 }
 $('cancel').onclick=()=>{if(!busy)return;epoch++;jobReject?.(Error('Cancelled'));worker?.terminate();worker=null;progress('Cancelled. You can start again.',0)};
+function parseTimedLyrics(raw){
+  const clean=raw.replace(/^\\uFEFF/,'').replace(/\\r/g,'').trim();
+  const timed=[];
+  const blocks=clean.replace(/^WEBVTT\\s*/i,'').split(/\\n\\s*\\n/);
+  const parseTime=value=>{
+    const bits=value.trim().replace(',','.').split(':');
+    if(!bits.length||bits.length>3||bits.some(v=>!Number.isFinite(Number(v))))return NaN;
+    return bits.reduce((acc,v)=>acc*60+Number(v),0);
+  };
+  if(clean.includes('-->')){
+    for(const block of blocks){
+      const rows=block.split('\\n'),idx=rows.findIndex(r=>r.includes('-->'));
+      if(idx<0)continue;
+      const [a,b]=rows[idx].split('-->').map(x=>x.trim().split(/\\s+/)[0]);
+      const start=parseTime(a),end=parseTime(b);
+      const text=rows.slice(idx+1).join(' ').replace(/<[^>]*>/g,'').trim();
+      if(Number.isFinite(start)&&Number.isFinite(end)&&end>start&&text)
+        timed.push({t:start,end,text});
+    }
+  }else{
+    timed.push(...parseLrc(clean));
+  }
+  return timed.sort((a,b)=>a.t-b.t);
+}
+$('timedImport').onchange=async event=>{
+  const f=event.target.files?.[0];if(!f)return;
+  try{
+    const cues=parseTimedLyrics(await f.text());
+    if(!cues.length)throw Error('This file has no valid timed lyric lines. Please export SRT or LRC from Sync Lab.');
+    showLyrics(cues);
+    $('timedName').textContent=f.name;
+    status('lyricStatus',cues.length+' synced lines imported. Press Play with countdown to check the on-screen video lyrics. No AI transcription was run.');
+    status('exportStatus','Your imported lyric timestamps control the video preview and WebM export.');
+    if(!instrumental&&vocals){resetPreview();setAudio(vocals)}
+  }catch(error){status('lyricStatus','Cannot import timed lyrics: '+error.message,'error')}
+};
 function showLyrics(next){lines=next;originalLines=next;$('lrc').value=LyraAlignment.toLrc(next);$('lyricEditor').classList.remove('hidden');prepareSync()}
 let syncActive=false,syncIndex=0,syncMarks=[],syncCues=[];
 function showSyncCue(){
