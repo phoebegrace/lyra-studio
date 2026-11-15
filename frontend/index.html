@@ -52,6 +52,15 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
 .timer{margin-left:auto;font-variant-numeric:tabular-nums;font-size:12px;color:#858ba0}
 .mini{font-size:12px;color:#83899d;margin-top:12px;line-height:1.55}
 .wide{width:100%}.finished{color:#376947}
+.export-panel{margin-top:12px;padding:14px 15px;background:#f8f7ff;border:1px solid #e4e0f9;border-radius:12px}
+.export-panel[hidden]{display:none}
+.export-progress{height:10px;background:#e8e4f6;border-radius:20px;overflow:hidden;margin:10px 0}
+.export-progress div{width:0%;height:100%;background:linear-gradient(90deg,#6252c8,#a384ee);transition:width .2s ease}
+.export-info{display:flex;gap:12px;justify-content:space-between;font-size:12px;font-weight:750;color:#5e508a;font-variant-numeric:tabular-nums}
+.export-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:11px}
+.export-download{display:inline-block;padding:11px 15px;background:#514aca;border-radius:10px;color:#fff;text-decoration:none;font-weight:750;font-size:13px}
+.export-download[hidden]{display:none}
+.export-help{font-size:12px;color:#72748a;line-height:1.5;margin-top:7px}
 @media(max-width:1020px){.workspace{grid-template-columns:1fr}.preview-card{position:static}.layout{width:min(100% - 26px,720px)}}
 @media(max-width:550px){.layout{padding:20px 0 50px}.card,.preview-card{padding:17px}.smallgrid{grid-template-columns:1fr}.head{align-items:flex-start}.controls .btn{flex:unset}.pick span{max-width:135px}}
 .sync-box{margin-top:14px;padding:14px;border:1px solid #dcd9f5;background:#f8f7ff;border-radius:13px}
@@ -156,7 +165,14 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
     <audio id="audio" class="player" controls preload="metadata"></audio>
     <div class="controls"><button class="btn secondary" id="preview">Play with countdown</button><button class="btn secondary" id="previewOutro">Preview ending</button><button class="btn secondary" id="fullscreen">Fullscreen</button><span class="timer" id="timer">00:00</span></div>
     <div class="row"><button class="btn wide" id="export">Export karaoke video</button></div>
-    <div class="message" id="exportStatus" role="status">Only lyrics will appear on the video, with the start countdown.</div>
+    <div class="export-panel" id="exportPanel" hidden>
+      <div class="export-info"><span id="exportStage">Preparing video…</span><span id="exportPercent">0%</span></div>
+      <div class="export-progress" id="exportTrack" role="progressbar" aria-label="Video export progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="exportFill"></div></div>
+      <div class="export-info"><span id="exportElapsed">00:00 recorded</span><span id="exportRemaining">Calculating time…</span></div>
+      <p class="export-help" id="exportHint">This exporter records at normal playback speed. Keep this tab open and the music playing until the file is ready.</p>
+      <div class="export-actions"><button class="btn secondary" id="cancelExport" type="button">Cancel export</button><a class="export-download" id="exportDownload" href="#" download="lyrica-karaoke.webm" hidden>Download video (.webm)</a></div>
+    </div>
+    <div class="message" id="exportStatus" role="status">Exports as WebM in real time. A 4-minute song takes around 4 minutes, plus the outro. A live progress bar appears when recording starts.</div>
     <p class="mini">The black galaxy loops automatically. Use your UVR instrumental for the exported audio.</p>
   </section>
 </div>
@@ -515,15 +531,50 @@ async function audioCaptureStream(){
   await exportAudioCtx.resume();
   return exportDestination.stream;
 }
+let exportCancel=null,exportDownloadUrl=null;
+const fmtTime=sec=>{
+  const n=Math.max(0,Math.floor(Number(sec)||0));
+  return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+};
+function setExportProgress(percentage,stage,elapsed,total){
+  const p=Math.max(0,Math.min(100,percentage));
+  $('exportPanel').hidden=false;
+  $('exportFill').style.width=p.toFixed(1)+'%';
+  $('exportTrack').setAttribute('aria-valuenow',String(Math.round(p)));
+  $('exportPercent').textContent=Math.round(p)+'%';
+  $('exportStage').textContent=stage;
+  $('exportElapsed').textContent=fmtTime(elapsed)+' recorded';
+  $('exportRemaining').textContent=total>0?fmtTime(Math.max(0,total-elapsed))+' remaining':'Finishing…';
+}
+$('cancelExport').onclick=()=>exportCancel?.();
 $('export').onclick=async()=>{
   if(recording)return;
   if(!lines.length){status('exportStatus','Generate timed lyrics in step 2 first.','error');return}
   if(!instrumental){status('exportStatus','Upload your instrumental in step 3 before exporting.','error');return}
-  if(!window.MediaRecorder){status('exportStatus','This browser does not support WebM export. Try Chrome.','error');return}
+  if(!Number.isFinite(audio.duration)||audio.duration<=0){
+    status('exportStatus','Audio is still loading. Wait for the player to show its full duration, then export again.','error');return;
+  }
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){
+    status('exportStatus','Video recording is not supported in this browser. Use desktop Chrome or Edge.','error');return}
   const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));
-  if(!mime){status('exportStatus','WebM export is not supported in this browser. Try Chrome.','error');return}
-  const button=$('export');button.disabled=true;recording=true;resetPreview();
-  let frame=null,recorder=null,playStarted=false,exportEndedAt=null;
+  if(!mime){status('exportStatus','WebM export is not supported in this browser. Use desktop Chrome or Edge.','error');return}
+  const button=$('export');
+  if(exportDownloadUrl){URL.revokeObjectURL(exportDownloadUrl);exportDownloadUrl=null}
+  $('exportDownload').hidden=true;
+  $('cancelExport').disabled=false;
+  button.disabled=true;button.textContent='Recording video…';
+  recording=true;resetPreview();
+  let frame=null,recorder=null,playStarted=false,exportEndedAt=null,cancelled=false,failed=false;
+  let lastProgressUpdate=-1,stallSince=0,lastAudioTime=-1;
+  const duration=audio.duration;
+  const currentLines=adjusted(),last=currentLines[currentLines.length-1];
+  const lastEnd=Number.isFinite(last.end)?last.end:Math.min(duration,last.t+5);
+  const exportEnd=Math.max(duration,lastEnd+8.6);
+  const countdownSecs=Number($('countdown').value)||0;
+  const estimatedTotal=countdownSecs+exportEnd;
+  setExportProgress(0,'Preparing audio and canvas…',0,estimatedTotal);
+  $('exportHint').textContent='Recording happens in real time at the song’s normal speed. Keep this tab active; the download button appears when the video is ready.';
+  status('exportStatus','Preparing video recording…');
   try{
     const stream=await audioCaptureStream();
     const canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;
@@ -531,39 +582,79 @@ $('export').onclick=async()=>{
     const video=canvas.captureStream(30);
     for(const track of stream.getAudioTracks())video.addTrack(track);
     const chunks=[];
-    recorder=new MediaRecorder(video,{mimeType:mime,videoBitsPerSecond:6500000});
-    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-    recorder.onerror=e=>status('exportStatus','Recording failed: '+(e.error?.message||'Unknown error'),'error');
-    recorder.onstop=()=>{
-      cancelAnimationFrame(frame);
-      video.getVideoTracks().forEach(t=>t.stop());
+    recorder=new MediaRecorder(video,{mimeType:mime,videoBitsPerSecond:4500000});
+    const started=performance.now(),deadline=started+countdownSecs*1000;
+    const finish=(error)=>{
+      cancelAnimationFrame(frame);audio.pause();
+      for(const t of video.getVideoTracks())t.stop();
+      recording=false;exportCancel=null;button.disabled=false;button.textContent='Export karaoke video';
+      $('cancelExport').disabled=true;
+      if(cancelled){setExportProgress(0,'Export cancelled',0,0);status('exportStatus','Export cancelled. No file was saved.');return}
+      if(error||failed){setExportProgress(0,'Export failed',0,0);status('exportStatus','Video export failed: '+(error||'Recorder reported an error.')+' Try Chrome, and keep this tab active.','error');return}
       const blob=new Blob(chunks,{type:mime});
-      if(blob.size){const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='lyrica-karaoke.webm';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);status('exportStatus','Your karaoke video has been saved.','success')}
-      else status('exportStatus','No video data was recorded. Try Chrome.','error');
-      recording=false;button.disabled=false;
+      if(!blob.size){setExportProgress(0,'Export failed',0,0);status('exportStatus','No video data was recorded. Please use desktop Chrome and retry.','error');return}
+      exportDownloadUrl=URL.createObjectURL(blob);
+      const link=$('exportDownload');
+      link.href=exportDownloadUrl;link.download='lyrica-karaoke.webm';link.hidden=false;
+      setExportProgress(100,'Video ready to download',estimatedTotal,estimatedTotal);
+      $('exportRemaining').textContent=(blob.size/1048576).toFixed(1)+' MB · WebM';
+      $('exportHint').textContent='The video is ready. Click Download video if your browser did not automatically save it.';
+      status('exportStatus','Video is ready! Click “Download video (.webm)” above to save your file.','success');
+      // Trigger a download, but keep a visible link in case the browser blocks it.
+      link.click();
     };
-    const secs=Number($('countdown').value)||0;
-    const deadline=performance.now()+secs*1000;
-    const currentLines=adjusted(),duration=audio.duration||0;
-    const finalLine=currentLines[currentLines.length-1];
-    const lastEnd=Number.isFinite(finalLine.end)?finalLine.end:Math.min(duration,finalLine.t+5);
-    const exportEnd=Math.max(duration,lastEnd+8.6);
+    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+    recorder.onerror=e=>{failed=true;status('exportStatus','Recorder error: '+(e.error?.message||'Unknown error'),'error')};
+    recorder.onstop=()=>finish(failed?'The recorder stopped unexpectedly.':null);
+    const stop=(reason)=>{
+      if(!recorder||recorder.state==='inactive')return;
+      if(reason==='cancel')cancelled=true;
+      else if(reason){failed=true;status('exportStatus',reason,'error')}
+      recorder.stop();
+    };
+    exportCancel=()=>stop('cancel');
+    const onEnded=()=>{if(exportEndedAt===null)exportEndedAt=performance.now()};
+    audio.addEventListener('ended',onEnded,{once:true});
     const paint=()=>{
-      const left=Math.max(0,(deadline-performance.now())/1000);
-      const visualTime=exportEndedAt===null?(audio.currentTime||0):duration+(performance.now()-exportEndedAt)/1000;
-      LyraGalaxy.draw(ctx,1280,720,visualTime,currentLines,{countdown:left,duration,songTitle:$('songTitle').value.trim(),songSinger:$('songSinger').value.trim(),logoImage:brandLogoImage,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
-      if(!playStarted&&left<=0){playStarted=true;audio.play().catch(e=>{status('exportStatus','Audio playback failed: '+e.message,'error');if(recorder.state!=='inactive')recorder.stop()})}
-      if(exportEndedAt!==null&&visualTime>=exportEnd){if(recorder.state!=='inactive')recorder.stop();return}
-      if(recording)frame=requestAnimationFrame(paint);
+      if(!recording||recorder.state==='inactive')return;
+      const now=performance.now();
+      const left=Math.max(0,(deadline-now)/1000);
+      const visualTime=exportEndedAt===null?(audio.currentTime||0):duration+(now-exportEndedAt)/1000;
+      LyraGalaxy.draw(ctx,1280,720,visualTime,currentLines,{
+        countdown:left,duration,songTitle:$('songTitle').value.trim(),songSinger:$('songSinger').value.trim(),
+        logoImage:brandLogoImage,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,
+        galaxyTime:now/1000
+      });
+      if(!playStarted&&left<=0){
+        playStarted=true;
+        audio.play().catch(e=>stop('Audio could not start: '+e.message));
+      }
+      if(playStarted&&exportEndedAt===null){
+        if(audio.ended||(audio.currentTime>=duration-.08&&duration>0&&audio.paused))onEnded();
+        if(!audio.paused){
+          if(Math.abs(audio.currentTime-lastAudioTime)>.03){lastAudioTime=audio.currentTime;stallSince=now}
+          else if(stallSince&&now-stallSince>15000){stop('Audio stopped progressing for more than 15 seconds. Please check the audio file and try again.');return}
+        }
+      }
+      const elapsed=Math.min(exportEnd,visualTime)+Math.max(0,countdownSecs-left);
+      if(now-lastProgressUpdate>350){
+        lastProgressUpdate=now;
+        const stage=left>0?'Countdown…':exportEndedAt===null?'Recording music…':'Recording final outro…';
+        setExportProgress(Math.min(99,100*elapsed/Math.max(1,estimatedTotal)),stage,elapsed,estimatedTotal);
+        button.textContent=left>0?'Countdown…':exportEndedAt===null?'Recording '+Math.round(100*elapsed/estimatedTotal)+'%':'Finishing outro…';
+      }
+      if(exportEndedAt!==null&&visualTime>=exportEnd){stop();return}
+      frame=requestAnimationFrame(paint);
     };
-    audio.addEventListener('ended',()=>{exportEndedAt=performance.now()},{once:true});
-    recorder.start(1000);paint();
-    status('exportStatus','Recording your video in real time. Keep this tab open until the music ends.');
+    recorder.start(1000);
+    paint();
+    status('exportStatus','Recording in real time. Watch the progress bar below; your download appears when complete.');
   }catch(e){
     cancelAnimationFrame(frame);
-    status('exportStatus','Export failed: '+e.message,'error');
-    if(recorder?.state==='recording')recorder.stop();
-    else{recording=false;button.disabled=false}
+    recording=false;exportCancel=null;button.disabled=false;button.textContent='Export karaoke video';
+    $('cancelExport').disabled=true;setExportProgress(0,'Export failed',0,0);
+    status('exportStatus','Export could not start: '+e.message,'error');
+    if(recorder?.state==='recording'){cancelled=true;recorder.stop()}
   }
 };
 </script></body></html>
