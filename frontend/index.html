@@ -91,7 +91,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
       <details><summary>Already have lyrics? Paste or import them</summary>
         <p>Paste existing lyrics, then align their timing to the vocals. Use this if AI mishears words.</p>
         <label class="field">Your lyrics<textarea id="referenceLyrics" spellcheck="false" placeholder="Paste your lyrics here, one line per phrase"></textarea></label>
-        <div class="row"><input id="lyricImport" type="file" accept=".txt,.lrc,.srt"><button class="btn secondary" id="align">Time these lyrics</button></div>
+        <div class="row"><input id="lyricImport" type="file" accept=".txt,.lrc,.srt"><button class="btn secondary" id="align">Time these lyrics</button><button class="btn secondary" id="manualFromPaste">Sync by listening instead</button></div>
         <p id="alignStatus"></p>
       </details>
     </section>
@@ -280,6 +280,16 @@ $('generate').onclick=async()=>{
 };
 $('apply').onclick=()=>{const parsed=parseLrc($('lrc').value);if(!parsed.length){status('lyricStatus','Please keep timestamps like [00:12.50] before each line.','error');return}showLyrics(parsed);status('lyricStatus','Your lyric edits are applied.');};
 $('lyricImport').onchange=async e=>{const f=e.target.files?.[0];if(f){$('referenceLyrics').value=await f.text();status('alignStatus','Loaded '+f.name)}};
+$('manualFromPaste').onclick=()=>{
+  const text=$('referenceLyrics').value.trim();
+  if(!text){status('alignStatus','Paste or import your lyrics first.','error');return}
+  if(!vocals){status('alignStatus','Upload the vocals-only WAV in Step 1.','error');return}
+  const cues=LyraAlignment.parseLyrics(text);
+  if(!cues.length){status('alignStatus','No lyric lines found. Use one phrase per line.','error');return}
+  showLyrics(cues.map(cue=>({t:Number.isFinite(cue.t)?cue.t:0,text:cue.text})));
+  status('alignStatus','Manual sync opened. Each tap sets the exact start of the next line.');
+  $('startSync').click();
+};
 $('align').onclick=async()=>{
   const text=$('referenceLyrics').value.trim();
   if(!text){status('alignStatus','Paste or import your lyrics first.','error');return}
