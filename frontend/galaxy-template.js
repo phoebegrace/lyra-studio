@@ -58,6 +58,97 @@ function lyricRows(ctx,words,maxWidth){
   }
   return best;
 }
+function rounded(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  if(typeof ctx.roundRect==='function')ctx.roundRect(x,y,w,h,r);
+  else{ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y)}
+}
+function outroIcon(ctx,kind){
+  ctx.lineJoin='round';ctx.lineCap='round';ctx.lineWidth=5;
+  ctx.strokeStyle='#f3eaff';ctx.fillStyle='rgba(222,190,255,.2)';
+  ctx.beginPath();
+  if(kind==='like'){
+    // Crisp outline thumb (original vector, not font-dependent emoji).
+    ctx.moveTo(-38,-1);ctx.lineTo(-24,-1);ctx.lineTo(-12,-14);
+    ctx.lineTo(-2,-36);ctx.quadraticCurveTo(4,-45,12,-40);
+    ctx.quadraticCurveTo(16,-36,12,-25);ctx.lineTo(8,-15);
+    ctx.lineTo(29,-15);ctx.quadraticCurveTo(40,-15,37,-4);
+    ctx.lineTo(26,31);ctx.quadraticCurveTo(23,39,14,39);
+    ctx.lineTo(-24,39);ctx.lineTo(-38,30);ctx.closePath();
+  }else if(kind==='comment'){
+    rounded(ctx,-38,-30,76,55,16);
+  }else{
+    ctx.moveTo(-28,24);ctx.quadraticCurveTo(-21,11,-21,-6);
+    ctx.quadraticCurveTo(-21,-32,0,-34);
+    ctx.quadraticCurveTo(21,-32,21,-6);
+    ctx.quadraticCurveTo(21,11,28,24);
+    ctx.quadraticCurveTo(31,31,23,31);
+    ctx.lineTo(-23,31);ctx.quadraticCurveTo(-31,31,-28,24);
+    ctx.closePath();
+  }
+  ctx.fill();ctx.stroke();
+  if(kind==='like'){ctx.beginPath();ctx.moveTo(-24,-1);ctx.lineTo(-24,39);ctx.stroke()}
+  if(kind==='comment'){
+    ctx.beginPath();ctx.moveTo(-12,23);ctx.lineTo(-22,38);ctx.lineTo(4,25);ctx.stroke();
+    for(const px of [-18,0,18]){ctx.beginPath();ctx.arc(px,-3,3,0,Math.PI*2);ctx.fillStyle='#f3eaff';ctx.fill()}
+  }
+  if(kind==='subscribe'){
+    ctx.beginPath();ctx.arc(0,34,6,0,Math.PI);ctx.stroke();
+    ctx.beginPath();ctx.arc(-31,-12,7,-2.6,-1.5);ctx.stroke();
+    ctx.beginPath();ctx.arc(31,-12,7,-1.6,-.5);ctx.stroke();
+  }
+}
+function drawOutro(ctx,t,lastEnd,duration,logo){
+  const start=lastEnd+1.04;
+  const finish=Math.max(duration||0,start+7.5);
+  if(t<start||t>finish)return false;
+  const elapsed=t-start;
+  const fadeIn=Math.min(1,Math.max(0,elapsed/.75));
+  const fadeOut=Math.min(1,Math.max(0,(finish-t)/.78));
+  const alpha=(1-Math.pow(1-fadeIn,3))*fadeOut;
+  ctx.save();ctx.globalAlpha=alpha;
+  // Approved brand mark floats above the three independently appearing icons.
+  if(logo?.complete && logo.naturalWidth>0){
+    const bounce=Math.sin(Math.min(1,elapsed/.9)*Math.PI)*8;
+    ctx.shadowColor='rgba(176,95,255,.45)';ctx.shadowBlur=30;
+    ctx.drawImage(logo,310,96-bounce,660,220);
+    ctx.shadowBlur=0;
+  }else{
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font='italic 72px Georgia,serif';ctx.fillStyle='#f5edff';
+    ctx.fillText('Lyrica Studio',640,190);
+  }
+  const items=[
+    {kind:'like',label:'LIKE',x:325},
+    {kind:'comment',label:'COMMENT',x:640},
+    {kind:'subscribe',label:'SUBSCRIBE',x:955}
+  ];
+  items.forEach((item,i)=>{
+    const phase=Math.max(0,Math.min(1,(elapsed-.55-i*.36)/.63));
+    if(!phase)return;
+    const pop=1-Math.pow(1-phase,3);
+    const overshoot=Math.sin(phase*Math.PI)*.13;
+    ctx.save();ctx.globalAlpha=alpha*pop;ctx.translate(item.x,432);
+    ctx.scale(pop+overshoot,pop+overshoot);
+    ctx.shadowColor='rgba(163,90,255,.54)';ctx.shadowBlur=24;
+    ctx.fillStyle='rgba(31,15,63,.75)';
+    rounded(ctx,-112,-86,224,184,27);ctx.fill();
+    ctx.lineWidth=2;ctx.strokeStyle='rgba(202,151,255,.8)';ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.save();ctx.translate(0,-25);outroIcon(ctx,item.kind);ctx.restore();
+    ctx.fillStyle='#f9f4ff';ctx.font='750 25px Inter,Arial,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(item.label,0,55);
+    ctx.restore();
+  });
+  if(elapsed>2.05){
+    ctx.save();ctx.globalAlpha=alpha*Math.min(1,(elapsed-2.05)/.65);
+    ctx.fillStyle='#deb9ff';ctx.textBaseline='middle';ctx.textAlign='center';
+    ctx.font='600 28px Inter,Arial,sans-serif';
+    ctx.fillText('FOR MORE!',640,622);
+    ctx.restore();
+  }
+  ctx.restore();return true;
+}
 function draw(ctx,w,h,time,lines,options={}){
   const t=Number.isFinite(time)?time:0;
   const galaxyT=Number.isFinite(options.galaxyTime)?options.galaxyTime:t;
@@ -76,6 +167,10 @@ function draw(ctx,w,h,time,lines,options={}){
   const intro=Math.max(0,Number(options.countdown)||0);
   const rowY=[278,458];
   const syncColor=options.highlight||'#c9b8ff',delay=Number(options.highlightDelay)||0;
+  const finalIndex=lines.length-1;
+  const finalEnd=getEnd(finalIndex);
+  const finalStart=lines[finalIndex].t;
+
 
   // Alternating stable positions: #1 at the top, #2 at the bottom,
   // then #3 replaces #1 shortly before #2 finishes, and so forth.
@@ -117,6 +212,18 @@ function draw(ctx,w,h,time,lines,options={}){
     const opacity=Math.max(0,Math.min(1,(viewTime-revealTime)/fade));
     visible.push({line:lines[choice],absolute:choice,slot,opacity});
   }
+
+  // When the very last lyric begins, it takes over the whole screen.
+  // Hold through the last sung word, then fade it out over 1 second.
+  if(t>=finalStart && t<finalEnd+1.04 && intro===0){
+    visible.length=0;
+    visible.push({
+      line:lines[finalIndex],absolute:finalIndex,slot:0,
+      opacity:t<=finalEnd?1:Math.max(0,1-(t-finalEnd)/1.04),
+      solo:true
+    });
+  }
+  if(t>=finalEnd+1.04)visible.length=0;
 
   // Opening song-title card plays ONLY with the instrumental, never under
   // lyrics. Clear it three seconds before the first sung phrase appears.
@@ -172,7 +279,7 @@ function draw(ctx,w,h,time,lines,options={}){
   }
 
   for(const item of visible){
-    const {line,absolute,slot:p,opacity}=item;
+    const {line,absolute,slot:p,opacity,solo}=item;
     ctx.save();ctx.globalAlpha=opacity;
     const raw=String(line.text||'').trim().split(/\s+/).filter(Boolean);
     if(!raw.length)continue;
@@ -187,7 +294,7 @@ function draw(ctx,w,h,time,lines,options={}){
     // a lonely last word in a narrow column.
     if(!rows)rows=[words];
     const lead=fontSize*1.18;
-    const middle=rowY[p],firstY=middle-(rows.length-1)*lead/2;
+    const middle=solo?368:rowY[p],firstY=middle-(rows.length-1)*lead/2;
     const end=getEnd(absolute);
     const isCurrent=t>=line.t&&t<end&&intro===0;
     const isFinished=t>=end;
@@ -229,11 +336,15 @@ function draw(ctx,w,h,time,lines,options={}){
     ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=10;
     ctx.fillText(String(timerValue),640,rowY[p]-83);
   }
+  // After the solo final lyric fades, show the branded call-to-action outro.
+  // It is time-derived, so preview and recorded frames stay identical.
+  const isOutro=drawOutro(ctx,t,finalEnd,Number(options.duration)||0,options.logoImage);
+
   // Approved Lyrica Studio logo ribbon: only in instrumental regions
   // of at least seven seconds. Opacity/position derive from audio time,
   // so preview and exported video have identical smooth transitions.
   const logo=options.logoImage;
-  if(logo?.complete&&logo.naturalWidth>0){
+  if(!isOutro && t<finalEnd && logo?.complete&&logo.naturalWidth>0){
     const intervals=[];
     const opening=Number(lines[0]?.t);
     if(Number.isFinite(opening)&&opening>=7)intervals.push({from:0,to:opening});
