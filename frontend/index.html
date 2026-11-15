@@ -15,7 +15,20 @@
 const $=id=>document.getElementById(id),audio=$('audio');let file=null,lines=[],recording=false,raf=0,generatedWords=[];
 const titles={studio:'Your creative studio',separate:'Separate your audio',video:'Create your lyric video'};
 function tab(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id===name));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));$('pageTitle').textContent=titles[name];$('crumb').textContent=name==='separate'?'Separate Audio':name==='video'?'Lyric Video':'Studio'}
-document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>tab(x.dataset.tab));$('goSeparate').onclick=()=>tab('separate');$('goVideo').onclick=()=>tab('video');
+document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
+async function probeAudioWorker(){
+  const node=$('separationStatus');
+  if(!file)node.textContent='Upload a song in Studio before processing.';
+  try {
+    const response=await fetch('https://lyra-audio-worker-production.up.railway.app/api/health',{cache:'no-store'});
+    if(!response.ok)throw Error('not healthy');
+    const data=await response.json();
+    if(data.status==='ready')node.textContent='Audio worker is online. Choose a model, enter your private processing key, then start separation.';
+    else node.textContent='Audio worker is starting. Please check the Railway deployment status.';
+  }catch(error){node.textContent='Railway audio worker is not available yet. Check its deployment status before processing.'}
+}
+document.querySelector('[data-tab="separate"]').addEventListener('click',probeAudioWorker);
+$('goSeparate').onclick=()=>tab('separate');$('goVideo').onclick=()=>tab('video');
 $('audioFile').onchange=e=>{file=e.target.files[0]||null;if(!file)return;if(audio.src.startsWith('blob:'))URL.revokeObjectURL(audio.src);audio.src=URL.createObjectURL(file);$('songName').textContent=file.name;};
 function parseLrc(s){return s.split(/\r?\n/).map(row=>{const m=row.match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)$/);if(!m)return null;return{t:Number(m[1])*60+Number(m[2])+Number(('0.'+(m[3]||'0'))),text:m[4].trim()}}).filter(x=>x&&x.text).sort((a,b)=>a.t-b.t)}
 function lineAt(t){let i=-1;for(let j=0;j<lines.length;j++)if(t>=lines[j].t)i=j;return i}
