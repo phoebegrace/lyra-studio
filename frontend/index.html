@@ -144,9 +144,9 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
       </div>
       <div style="margin-top:12px">
         <label class="field" style="margin-top:12px">Sync color timing (seconds)
-          <input id="syncColorDelay" type="number" value="0" step="0.05" min="-2" max="2" aria-describedby="syncDelayHelp">
+          <input id="syncColorDelay" type="number" value="-0.08" step="0.05" min="-2" max="2" aria-describedby="syncDelayHelp">
         </label>
-        <p class="detail" id="syncDelayHelp" style="margin-top:4px">If the color changes too early, use +0.1. Negative values make it change sooner. This only shifts the highlight, not the lyric line.</p>
+        <p class="detail" id="syncDelayHelp" style="margin-top:4px">The lyric highlight is now gently advanced by 0.08 seconds by default. Use +0.1 if the color is early, or a more negative value to start sooner. Only the highlight timing changes.</p>
       </div>
     </section>
   </div>
@@ -161,7 +161,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
   </section>
 </div>
 </main>
-<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=12"></script>
+<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=13"></script>
 <script>
 const $=id=>document.getElementById(id);
 const audio=$('audio');
