@@ -78,6 +78,13 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
 <div class="workspace">
   <div class="steps">
     <section class="card">
+      <div class="stephead"><span class="number">♪</span><div><h2>Song title</h2><p class="detail">Shown during the opening instrumental, then fades before the first lyrics.</p></div></div>
+      <label class="field" for="songTitle">Title for the opening video
+        <input id="songTitle" type="text" maxlength="110" placeholder="Enter the song title" autocomplete="off">
+      </label>
+      <p class="detail" style="margin-top:8px">This is a title card, not a logo. It appears in the video preview and exported video only when there's enough intro time.</p>
+    </section>
+    <section class="card">
       <div class="stephead"><span class="number">01</span><div><h2>Add your vocals</h2><p class="detail">Use the vocals-only WAV from UVR.</p></div></div>
       <label class="pick" for="vocalFile"><strong>Choose vocals file</strong><span id="vocalName">No file selected</span><input type="file" accept="audio/*,.wav,.flac,.mp3,.m4a,.ogg" id="vocalFile"></label>
     </section>
@@ -151,7 +158,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
   </section>
 </div>
 </main>
-<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=7"></script>
+<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=8"></script>
 <script>
 const $=id=>document.getElementById(id);
 const audio=$('audio');
@@ -183,7 +190,7 @@ const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({.
 function render(){
   const left=activeCountdown?Math.max(0,(countdownDeadline-performance.now())/1000):0;
   LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,audio.currentTime||0,adjusted(),{
-    countdown:left,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000,
+    countdown:left,songTitle:$('songTitle').value.trim(),highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000,
     duration:audio.duration||0
   });
   const current=audio.currentTime||0;
@@ -521,7 +528,7 @@ $('export').onclick=async()=>{
     const currentLines=adjusted(),duration=audio.duration||0;
     const paint=()=>{
       const left=Math.max(0,(deadline-performance.now())/1000);
-      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
+      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,songTitle:$('songTitle').value.trim(),highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
       if(!playStarted&&left<=0){playStarted=true;audio.play().catch(e=>{status('exportStatus','Audio playback failed: '+e.message,'error');if(recorder.state!=='inactive')recorder.stop()})}
       if(recording)frame=requestAnimationFrame(paint);
     };
