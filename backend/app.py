@@ -87,6 +87,7 @@ def select_stems(folder: Path):
 
 def run_engine(input_path: Path, result_path: Path, preset: str):
     engine, value = PRESETS[preset]
+    result_path.mkdir(parents=True, exist_ok=True)
     if engine == "demucs":
         args = [
             "python", "-m", "demucs", "-n", value,
