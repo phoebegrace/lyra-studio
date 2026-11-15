@@ -112,7 +112,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
       <div class="message" id="lyricStatus" role="status">Upload vocals, then click Generate.</div>
       <div id="lyricEditor" class="hidden" style="margin-top:13px">
         <label class="field">Review your timed lyrics<textarea id="lrc" spellcheck="false" placeholder="[00:05.00]First lyric line"></textarea></label>
-        <div class="row"><button class="btn secondary" id="apply">Apply edits</button><button class="btn secondary" id="saveLrc">Download LRC</button><button class="btn secondary" id="saveSrt">Download SRT (audio)</button><button class="btn secondary" id="saveVideoSrt">Download SRT (video)</button></div><p class="detail" style="margin-top:7px">Audio SRT uses original song timestamps. Video SRT adds your selected countdown. Both preserve the lyric text.</p>
+        <div class="row"><button class="btn secondary" id="apply">Apply edits</button><button class="btn secondary" id="saveLrc">Download LRC</button><button class="btn secondary" id="saveSrt">Download SRT (audio)</button><button class="btn secondary" id="saveVideoSrt">Download SRT (video)</button></div><p class="detail" style="margin-top:7px">Audio and video subtitles use the original song timestamps. The small on-screen lyric countdown does not delay the song.</p>
         <div class="sync-box" id="syncBox">
           <div class="stephead" style="margin-bottom:5px"><span class="number">♫</span><div><h2>Fix lyric timing</h2><p class="detail">Listen to the vocals. Tap once when each line starts.</p></div></div>
           <div class="row"><button class="btn secondary" id="startSync">Start listening</button><button class="btn secondary" id="syncUndo" disabled>Undo last</button><span class="sync-clock" id="syncClock">00:00.00</span></div>
@@ -134,10 +134,8 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
       <label class="pick" for="instrumentalFile"><strong>Choose instrumental</strong><span id="instrumentalName">No file selected</span><input type="file" id="instrumentalFile" accept="audio/*,.wav,.flac,.mp3,.m4a,.ogg"></label>
     </section>
     <section class="card">
-      <div class="stephead"><span class="number">04</span><div><h2>Ready to play?</h2><p class="detail">Choose a countdown before the music starts.</p></div></div>
+      <div class="stephead"><span class="number">04</span><div><h2>Ready to play?</h2><p class="detail">Start with the title and singer. A small countdown appears only before the first lyric.</p></div></div>
       <div class="smallgrid">
-        <label class="field">Countdown
-        <select id="countdown"><option value="0">No countdown</option><option value="3" selected>3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select></label>
         <label class="field">Lyrics timing adjustment (sec)<input type="number" id="offset" value="0" step="0.1" min="-30" max="30"></label>
       </div>
       <div class="message">Change timing only if the words appear too early or late.</div>
@@ -163,7 +161,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
     <div class="preview-header"><h2>Video preview</h2><span class="badge">16:9 · Two lyric lines</span></div>
     <canvas id="videoCanvas" class="video" width="1280" height="720" aria-label="Galaxy karaoke lyrics preview"></canvas>
     <audio id="audio" class="player" controls preload="metadata"></audio>
-    <div class="controls"><button class="btn secondary" id="preview">Play with countdown</button><button class="btn secondary" id="previewOutro">Preview ending</button><button class="btn secondary" id="fullscreen">Fullscreen</button><span class="timer" id="timer">00:00</span></div>
+    <div class="controls"><button class="btn secondary" id="preview">Play karaoke</button><button class="btn secondary" id="previewOutro">Preview ending</button><button class="btn secondary" id="fullscreen">Fullscreen</button><span class="timer" id="timer">00:00</span></div>
     <div class="row"><button class="btn wide" id="export">Export karaoke video</button></div>
     <div class="export-panel" id="exportPanel" hidden>
       <div class="export-info"><span id="exportStage">Preparing video…</span><span id="exportPercent">0%</span></div>
@@ -493,7 +491,7 @@ function downloadFile(filename,body){const url=URL.createObjectURL(new Blob([bod
 $('saveLrc').onclick=()=>downloadFile('lyrica-lyrics.lrc',LyraAlignment.toLrc(adjusted()));
 function downloadSrtFor(mode){
   if(!lines.length){status('lyricStatus','Generate or align lyrics first.','error');return}
-  const intro=mode==='video'?(Number($('countdown').value)||0):0;
+  const intro=0; // No pre-song countdown; title and music start together.
   const shifted=adjusted().map(l=>({...l,t:l.t+intro,
     end:Number.isFinite(l.end)?l.end+intro:undefined,
     words:l.words?.map(w=>({...w,start:w.start+intro,end:Number.isFinite(w.end)?w.end+intro:undefined}))}));
@@ -501,7 +499,7 @@ function downloadSrtFor(mode){
   downloadFile(mode==='video'?'lyrica-karaoke-video.srt':'lyrica-original-audio.srt',
     LyraAlignment.toSrt(shifted,duration));
   status('lyricStatus',mode==='video'
-    ?'Video SRT downloaded, with '+intro+' seconds of intro countdown.'
+    ?'Video SRT downloaded with the original song timing.'
     :'Audio SRT downloaded without countdown. Lyrics use the original song timeline.');
 }
 $('saveSrt').onclick=()=>downloadSrtFor('audio');
@@ -510,7 +508,7 @@ $('preview').onclick=async()=>{
   if(!lines.length){status('exportStatus','Generate timed lyrics first.','error');return}
   if(!audio.src){status('exportStatus','Add an instrumental in step 3.','error');return}
   resetPreview();
-  const secs=Number($('countdown').value)||0;
+  const secs=0; // Start title and instrumental immediately.
   if(secs){activeCountdown=true;countdownDeadline=performance.now()+secs*1000;status('exportStatus','Countdown started.')}
   else{await audio.play().catch(e=>status('exportStatus','Playback failed: '+e.message,'error'))}
 };
@@ -570,7 +568,7 @@ $('export').onclick=async()=>{
   const currentLines=adjusted(),last=currentLines[currentLines.length-1];
   const lastEnd=Number.isFinite(last.end)?last.end:Math.min(duration,last.t+5);
   const exportEnd=Math.max(duration,lastEnd+8.6);
-  const countdownSecs=Number($('countdown').value)||0;
+  const countdownSecs=0; // Export begins immediately with the title and audio.
   const estimatedTotal=countdownSecs+exportEnd;
   setExportProgress(0,'Preparing audio and canvas…',0,estimatedTotal);
   $('exportHint').textContent='Recording happens in real time at the song’s normal speed. Keep this tab active; the download button appears when the video is ready.';
