@@ -78,12 +78,28 @@ self.onmessage = async event=>{
     const ids=Array.from(tokenizer.encode(all,{add_special_tokens:false}));
     const blank=Number(tokenizer.pad_token_id ?? model.config?.pad_token_id ?? 0);
     if(!ids.length||ids.some(x=>x===blank))throw Error('The supplied lyric characters cannot be represented by this model.');
-    const bounds=textLines.map((line,i)=>{
-      const before=textLines.slice(0,i).join(' ');
-      const start=i===0?0:tokenizer.encode(before+' ',{add_special_tokens:false}).length;
-      const end=tokenizer.encode(textLines.slice(0,i+1).join(' '),{add_special_tokens:false}).length-1;
-      return {start,end};
+    // Map each reference WORD (not just each line) into the CTC token sequence.
+    // Wav2Vec2 uses character tokens; prefix token lengths let us retain exact
+    // token boundaries even if its tokenizer normalizes spaces differently.
+    const lexical=[];
+    const wordRegex=/[^ ]+/g;
+    for(let match; (match=wordRegex.exec(all))!==null;){
+      const before=all.slice(0,match.index);
+      const through=all.slice(0,match.index+match[0].length);
+      const start=tokenizer.encode(before,{add_special_tokens:false}).length;
+      const end=tokenizer.encode(through,{add_special_tokens:false}).length-1;
+      lexical.push({text:match[0],start,end});
+    }
+    if(!lexical.length||lexical.some(w=>w.start>w.end||w.start<0||w.end>=ids.length))
+      throw Error('Unable to map lyric words to alignment tokens.');
+    let wordCursor=0;
+    const bounds=textLines.map(line=>{
+      const numWords=line.split(' ').filter(Boolean).length;
+      const start=wordCursor;
+      wordCursor+=numWords;
+      return {start,end:wordCursor};
     });
+    if(wordCursor!==lexical.length)throw Error('Lyric word tokenization mismatch.');
     emit('Reading the vocals with Wav2Vec2…',5);
     const size=8*16000,frames=[],timesStart=[],timesEnd=[];
     const parts=Math.ceil(audio.length/size);
@@ -104,19 +120,33 @@ self.onmessage = async event=>{
       emit('Analyzed vocal section '+(i+1)+' of '+parts+'…',5+Math.round(75*(i+1)/parts));
     }
     const path=alignmentPath(frames,ids,blank);
-    const aligned=cues.map((cue,i)=>{
-      const {start,end}=bounds[i];
-      let a=-1,b=-1,quality=0,count=0;
-      for(let k=start;k<=end;k++){
+    const detectedWords=lexical.map(lex=>{
+      let a=-1,b=-1,score=0,seen=0;
+      for(let k=lex.start;k<=lex.end;k++){
         if(path.first[k]>=0&&(a<0||path.first[k]<a))a=path.first[k];
         if(path.last[k]>b)b=path.last[k];
-        if(path.counts[k]){quality+=path.margin[k]/path.counts[k];count++}
+        if(path.counts[k]){score+=path.margin[k]/path.counts[k];seen++}
       }
-      if(a<0||b<0)return {...cue,t:null,confidence:0,uncertain:true};
-      const confidence=Math.max(0,Math.min(1,Math.exp((quality/Math.max(1,count))/2)));
-      return {text:cue.text,t:Math.round(timesStart[a]*100)/100,
-        end:Math.round(Math.max(timesEnd[b],timesStart[a]+.2)*100)/100,
-        confidence,uncertain:confidence<.24};
+      if(a<0||b<0)return {start:null,end:null,confidence:0};
+      const confidence=Math.max(0,Math.min(1,Math.exp((score/Math.max(1,seen))/2)));
+      return {start:Math.round(timesStart[a]*1000)/1000,
+        end:Math.round(Math.max(timesEnd[b],timesStart[a]+.06)*1000)/1000,
+        confidence};
+    });
+    const aligned=cues.map((cue,i)=>{
+      const {start,end}=bounds[i];
+      const sourceWords=cue.text.trim().split(/\s+/).filter(Boolean);
+      const alignedWords=detectedWords.slice(start,end);
+      // Keep original punctuation/casing in the on-screen lyrics.
+      const words=alignedWords.map((w,j)=>({text:sourceWords[j]||lexical[start+j].text,...w}));
+      if(words.length!==sourceWords.length || words.some(w=>!Number.isFinite(w.start)||!Number.isFinite(w.end)))
+        return {text:cue.text,t:null,end:null,words:[],confidence:0,uncertain:true};
+      let confidence=words.reduce((v,w)=>v+w.confidence,0)/words.length;
+      const t=words[0].start,last=words[words.length-1].end;
+      const duration=last-t;
+      // Check suspicious whole-line results instead of declaring them precise.
+      const uncertain=confidence<.24||duration<.12||words.some(w=>w.end<=w.start);
+      return {text:cue.text,t,end:Math.max(last,t+.15),words,confidence,uncertain};
     });
     const uncertain=aligned.filter(x=>x.uncertain).length;
     self.postMessage({lines:aligned,uncertain,percent:100,
