@@ -154,7 +154,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
     <div class="preview-header"><h2>Video preview</h2><span class="badge">16:9 · Two lyric lines</span></div>
     <canvas id="videoCanvas" class="video" width="1280" height="720" aria-label="Galaxy karaoke lyrics preview"></canvas>
     <audio id="audio" class="player" controls preload="metadata"></audio>
-    <div class="controls"><button class="btn secondary" id="preview">Play with countdown</button><button class="btn secondary" id="fullscreen">Fullscreen</button><span class="timer" id="timer">00:00</span></div>
+    <div class="controls"><button class="btn secondary" id="preview">Play with countdown</button><button class="btn secondary" id="previewOutro">Preview ending</button><button class="btn secondary" id="fullscreen">Fullscreen</button><span class="timer" id="timer">00:00</span></div>
     <div class="row"><button class="btn wide" id="export">Export karaoke video</button></div>
     <div class="message" id="exportStatus" role="status">Only lyrics will appear on the video, with the start countdown.</div>
     <p class="mini">The black galaxy loops automatically. Use your UVR instrumental for the exported audio.</p>
@@ -179,7 +179,7 @@ highlightInput.addEventListener('input',()=>{
 });
 
 let vocals=null,instrumental=null,lines=[],originalLines=[],worker=null,jobReject=null,epoch=0,busy=false,recording=false;
-let countdownDeadline=0,raf=0,activeCountdown=false,playingFromTimer=false,previewEndedAt=null;
+let countdownDeadline=0,raf=0,activeCountdown=false,playingFromTimer=false,previewEndedAt=null,demoOutroStartedAt=null;
 let exportAudioCtx=null,exportSource=null,exportDestination=null;
 const status=(id,message,kind)=>{const el=$(id);el.textContent=message;el.classList.toggle('error',kind==='error')};
 const toStamp=t=>{const n=Math.max(0,t);return '['+String(Math.floor(n/60)).padStart(2,'0')+':'+String(Math.floor(n%60)).padStart(2,'0')+'.'+String(Math.round((n%1)*100)).padStart(2,'0')+']'};
@@ -193,7 +193,14 @@ const groupWords=words=>{
 const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({...l,t:Math.max(0,l.t+n),end:Number.isFinite(l.end)?Math.max(.1,l.end+n):undefined,words:l.words?.map(w=>({...w,start:Math.max(0,w.start+n),end:Number.isFinite(w.end)?Math.max(0,w.end+n):undefined}))})).sort((a,b)=>a.t-b.t)};
 function render(){
   const left=activeCountdown?Math.max(0,(countdownDeadline-performance.now())/1000):0;
-  const visualTime=previewEndedAt===null?(audio.currentTime||0):(Number(audio.duration)||0)+(performance.now()-previewEndedAt)/1000;
+  let visualTime=previewEndedAt===null?(audio.currentTime||0):(Number(audio.duration)||0)+(performance.now()-previewEndedAt)/1000;
+  if(demoOutroStartedAt!==null && lines.length){
+    const last=adjusted().at(-1);
+    const end=Number.isFinite(last.end)?last.end:last.t+5;
+    const elapsed=(performance.now()-demoOutroStartedAt)/1000;
+    visualTime=end-.5+elapsed;
+    if(elapsed>9.7)demoOutroStartedAt=null;
+  }
   LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,visualTime,adjusted(),{
     countdown:left,songTitle:$('songTitle').value.trim(),songSinger:$('songSinger').value.trim(),logoImage:brandLogoImage,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000,
     duration:audio.duration||0
@@ -208,7 +215,7 @@ function setAudio(f){
   if(audio.src.startsWith('blob:'))URL.revokeObjectURL(audio.src);
   audio.src=URL.createObjectURL(f);audio.load();
 }
-function resetPreview(){activeCountdown=false;playingFromTimer=false;previewEndedAt=null;audio.pause();audio.currentTime=0}
+function resetPreview(){activeCountdown=false;playingFromTimer=false;previewEndedAt=null;demoOutroStartedAt=null;audio.pause();audio.currentTime=0}
 audio.addEventListener('play',()=>{if(!recording)previewEndedAt=null});
 audio.addEventListener('ended',()=>{if(!recording)previewEndedAt=performance.now()});
 $('vocalFile').onchange=e=>{
@@ -490,6 +497,11 @@ $('preview').onclick=async()=>{
   const secs=Number($('countdown').value)||0;
   if(secs){activeCountdown=true;countdownDeadline=performance.now()+secs*1000;status('exportStatus','Countdown started.')}
   else{await audio.play().catch(e=>status('exportStatus','Playback failed: '+e.message,'error'))}
+};
+$('previewOutro').onclick=()=>{
+  if(!lines.length){status('exportStatus','Generate or import lyrics before previewing the ending.','error');return}
+  resetPreview();demoOutroStartedAt=performance.now();
+  status('exportStatus','Previewing the final lyric and Lyrica Studio outro. Audio is paused for this demo.');
 };
 $('fullscreen').onclick=()=>{const v=$('videoCanvas');if(document.fullscreenElement)document.exitFullscreen();else v.requestFullscreen?.().catch(e=>status('exportStatus','Fullscreen unavailable: '+e.message,'error'))};
 async function audioCaptureStream(){
