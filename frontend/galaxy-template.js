@@ -4,7 +4,7 @@
 const TAU=Math.PI*2, PERIOD=22;
 let seed=711409;
 const random=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);
-const stars=Array.from({length:220},()=>({x:random(),y:random(),r:.4+random()*1.35,phase:random()*TAU,speed:1+Math.floor(random()*3),a:.25+random()*.68}));
+const stars=Array.from({length:280},()=>({x:random(),y:random(),r:.45+random()*1.7,phase:random()*TAU,speed:1+Math.floor(random()*3),a:.28+random()*.7}));
 const clouds=[
   {x:.26,y:.36,rX:.45,rY:.32,c:'78,52,135',a:.21,p:0},
   {x:.74,y:.63,rX:.42,rY:.24,c:'43,65,148',a:.18,p:2.1},
@@ -15,7 +15,7 @@ function background(ctx,w,h,time){
   ctx.fillStyle='#030409';ctx.fillRect(0,0,w,h);
   for(const c of clouds){
     ctx.save();
-    ctx.translate((c.x+.018*Math.sin(a+c.p))*w,(c.y+.024*Math.cos(a+c.p))*h);
+    ctx.translate((c.x+.035*Math.sin(a+c.p))*w,(c.y+.03*Math.cos(a+c.p))*h);
     ctx.rotate(-.28);ctx.scale(c.rX*w,c.rY*h);
     const g=ctx.createRadialGradient(0,0,.03,0,0,1);
     g.addColorStop(0,'rgba('+c.c+','+c.a+')');
@@ -24,14 +24,16 @@ function background(ctx,w,h,time){
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,1,0,TAU);ctx.fill();ctx.restore();
   }
   for(const s of stars){
-    ctx.fillStyle='rgba(233,238,255,'+(s.a*(.76+.24*Math.cos(s.speed*a+s.phase)))+')';
+    ctx.fillStyle='rgba(233,238,255,'+(s.a*(.62+.38*Math.cos(s.speed*a+s.phase)))+')';
     // Slow, seamless diagonal drift over the 22-second starfield loop.
     // Each layer moves slightly differently to create gentle parallax.
-    const driftX=(s.speed*.0038)*Math.sin(a+s.phase*.18);
-    const driftY=(s.speed*.0032)*Math.cos(a+s.phase*.18);
+    const driftX=(.012+s.speed*.005)*Math.sin(a+s.phase*.18);
+    const driftY=(.009+s.speed*.004)*Math.cos(a+s.phase*.18);
     const x=((s.x+driftX+1)%1)*w;
     const y=((s.y+driftY+1)%1)*h;
     ctx.beginPath();ctx.arc(x,y,s.r*w/1280,0,TAU);ctx.fill();
+    // Occasional brighter, softly glowing stars help movement read at video size.
+    if(s.r>1.65){ctx.fillStyle='rgba(195,167,255,'+(s.a*.13)+')';ctx.beginPath();ctx.arc(x,y,s.r*2.9*w/1280,0,TAU);ctx.fill();}
   }
   const vignette=ctx.createRadialGradient(w*.5,h*.5,w*.1,w*.5,h*.5,w*.74);
   vignette.addColorStop(0,'rgba(0,0,0,.08)');vignette.addColorStop(1,'rgba(0,0,0,.67)');
