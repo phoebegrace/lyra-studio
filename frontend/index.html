@@ -9,7 +9,7 @@
 button:disabled{opacity:.46;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #9992ef;outline-offset:2px}
 .layout{width:min(100% - 44px,1470px);margin:0 auto;padding:30px 0 70px}
 .head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}
-.brand{font-size:25px;font-weight:850;letter-spacing:-1px;color:#3b2a72}.brand span{color:#8f67d9}
+.brand{width:max-content;max-width:100%;background:#07030f;border-radius:12px;overflow:hidden;box-shadow:0 5px 15px rgba(39,15,90,.14)}.brand-logo{display:block;width:clamp(200px,23vw,275px);height:auto;aspect-ratio:3/1;object-fit:contain}
 .eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:#898aa3;margin-bottom:6px}
 h1{font-size:clamp(26px,3vw,39px);letter-spacing:-1.6px;margin:0 0 6px}
 .sub{font-size:14px;color:#85899d;margin:0}
@@ -74,7 +74,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
 </head>
 <body>
 <main class="layout">
-<header class="head"><div><div class="brand">Lyrica <span>Studio</span></div><div class="eyebrow" style="margin-top:19px">Your karaoke studio</div><h1>Make your lyric video.</h1><p class="sub">Vocals in. Lyrics synced. Instrumental in. Done.</p></div><span class="badge">Free · In your browser</span></header>
+<header class="head"><div><div class="brand"><img class="brand-logo" src="/lyrica-approved.webp" width="420" height="140" alt="Lyrica Studio logo"></div><div class="eyebrow" style="margin-top:19px">Your karaoke studio</div><h1>Make your lyric video.</h1><p class="sub">Vocals in. Lyrics synced. Instrumental in. Done.</p></div><span class="badge">Free · In your browser</span></header>
 <div class="workspace">
   <div class="steps">
     <section class="card">
@@ -158,10 +158,11 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
   </section>
 </div>
 </main>
-<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=8"></script>
+<script src="/alignment.js?v=2"></script><script src="/galaxy-template.js?v=9"></script>
 <script>
 const $=id=>document.getElementById(id);
 const audio=$('audio');
+const brandLogoImage=new Image();brandLogoImage.src='/lyrica-approved.webp';
 const highlightInput=$('syncHighlightColor');
 document.querySelectorAll('[data-sync-color]').forEach(button=>{
   button.addEventListener('click',()=>{
@@ -190,7 +191,7 @@ const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({.
 function render(){
   const left=activeCountdown?Math.max(0,(countdownDeadline-performance.now())/1000):0;
   LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,audio.currentTime||0,adjusted(),{
-    countdown:left,songTitle:$('songTitle').value.trim(),highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000,
+    countdown:left,songTitle:$('songTitle').value.trim(),logoImage:brandLogoImage,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000,
     duration:audio.duration||0
   });
   const current=audio.currentTime||0;
@@ -528,7 +529,7 @@ $('export').onclick=async()=>{
     const currentLines=adjusted(),duration=audio.duration||0;
     const paint=()=>{
       const left=Math.max(0,(deadline-performance.now())/1000);
-      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,songTitle:$('songTitle').value.trim(),highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
+      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,songTitle:$('songTitle').value.trim(),logoImage:brandLogoImage,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
       if(!playStarted&&left<=0){playStarted=true;audio.play().catch(e=>{status('exportStatus','Audio playback failed: '+e.message,'error');if(recorder.state!=='inactive')recorder.stop()})}
       if(recording)frame=requestAnimationFrame(paint);
     };
