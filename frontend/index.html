@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lyra Studio — Make a Karaoke Video</title>
+<title>Lyrica Studio — Make a Karaoke Video</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#202339;background:#f6f7fc}
 *{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer}
 button:disabled{opacity:.46;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #9992ef;outline-offset:2px}
 .layout{width:min(100% - 44px,1470px);margin:0 auto;padding:30px 0 70px}
 .head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}
-.brand{width:max-content;max-width:100%;padding:2px 13px;border-radius:14px;background:linear-gradient(135deg,#12102b,#21143d);box-shadow:0 4px 14px rgba(34,18,72,.13)}.site-logo{display:block;width:min(235px,55vw);height:55px;object-fit:contain}
+.brand{font-size:25px;font-weight:850;letter-spacing:-1px;color:#3b2a72}.brand span{color:#8f67d9}
 .eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:#898aa3;margin-bottom:6px}
 h1{font-size:clamp(26px,3vw,39px);letter-spacing:-1.6px;margin:0 0 6px}
 .sub{font-size:14px;color:#85899d;margin:0}
@@ -74,7 +74,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
 </head>
 <body>
 <main class="layout">
-<header class="head"><div><div class="brand"><img src="/lyra-logo.svg" alt="Lyra Studio — Karaoke Creator" width="235" height="55" class="site-logo"></div><div class="eyebrow" style="margin-top:19px">Your karaoke studio</div><h1>Make your lyric video.</h1><p class="sub">Vocals in. Lyrics synced. Instrumental in. Done.</p></div><span class="badge">Free · In your browser</span></header>
+<header class="head"><div><div class="brand">Lyrica <span>Studio</span></div><div class="eyebrow" style="margin-top:19px">Your karaoke studio</div><h1>Make your lyric video.</h1><p class="sub">Vocals in. Lyrics synced. Instrumental in. Done.</p></div><span class="badge">Free · In your browser</span></header>
 <div class="workspace">
   <div class="steps">
     <section class="card">
@@ -155,7 +155,6 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
 <script>
 const $=id=>document.getElementById(id);
 const audio=$('audio');
-const logoImage=new Image();logoImage.src='/lyra-logo.svg';
 const highlightInput=$('syncHighlightColor');
 document.querySelectorAll('[data-sync-color]').forEach(button=>{
   button.addEventListener('click',()=>{
@@ -184,7 +183,7 @@ const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({.
 function render(){
   const left=activeCountdown?Math.max(0,(countdownDeadline-performance.now())/1000):0;
   LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,audio.currentTime||0,adjusted(),{
-    countdown:left,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,logoImage,galaxyTime:performance.now()/1000,
+    countdown:left,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000,
     duration:audio.duration||0
   });
   const current=audio.currentTime||0;
@@ -454,7 +453,7 @@ $('align').onclick=async()=>{
   }
 };
 function downloadFile(filename,body){const url=URL.createObjectURL(new Blob([body],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),15000)}
-$('saveLrc').onclick=()=>downloadFile('lyra-lyrics.lrc',LyraAlignment.toLrc(adjusted()));
+$('saveLrc').onclick=()=>downloadFile('lyrica-lyrics.lrc',LyraAlignment.toLrc(adjusted()));
 function downloadSrtFor(mode){
   if(!lines.length){status('lyricStatus','Generate or align lyrics first.','error');return}
   const intro=mode==='video'?(Number($('countdown').value)||0):0;
@@ -462,7 +461,7 @@ function downloadSrtFor(mode){
     end:Number.isFinite(l.end)?l.end+intro:undefined,
     words:l.words?.map(w=>({...w,start:w.start+intro,end:Number.isFinite(w.end)?w.end+intro:undefined}))}));
   const duration=(Number.isFinite(audio.duration)?audio.duration:0)+intro;
-  downloadFile(mode==='video'?'lyra-karaoke-video.srt':'lyra-original-audio.srt',
+  downloadFile(mode==='video'?'lyrica-karaoke-video.srt':'lyrica-original-audio.srt',
     LyraAlignment.toSrt(shifted,duration));
   status('lyricStatus',mode==='video'
     ?'Video SRT downloaded, with '+intro+' seconds of intro countdown.'
@@ -513,7 +512,7 @@ $('export').onclick=async()=>{
       cancelAnimationFrame(frame);
       video.getVideoTracks().forEach(t=>t.stop());
       const blob=new Blob(chunks,{type:mime});
-      if(blob.size){const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='lyra-karaoke.webm';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);status('exportStatus','Your karaoke video has been saved.','success')}
+      if(blob.size){const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='lyrica-karaoke.webm';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);status('exportStatus','Your karaoke video has been saved.','success')}
       else status('exportStatus','No video data was recorded. Try Chrome.','error');
       recording=false;button.disabled=false;
     };
@@ -522,7 +521,7 @@ $('export').onclick=async()=>{
     const currentLines=adjusted(),duration=audio.duration||0;
     const paint=()=>{
       const left=Math.max(0,(deadline-performance.now())/1000);
-      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,logoImage,galaxyTime:performance.now()/1000});
+      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
       if(!playStarted&&left<=0){playStarted=true;audio.play().catch(e=>{status('exportStatus','Audio playback failed: '+e.message,'error');if(recorder.state!=='inactive')recorder.stop()})}
       if(recording)frame=requestAnimationFrame(paint);
     };
