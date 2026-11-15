@@ -25,7 +25,13 @@ function background(ctx,w,h,time){
   }
   for(const s of stars){
     ctx.fillStyle='rgba(233,238,255,'+(s.a*(.76+.24*Math.cos(s.speed*a+s.phase)))+')';
-    ctx.beginPath();ctx.arc((s.x+.002*Math.sin(a+s.phase))*w,(s.y+.002*Math.cos(a+s.phase))*h,s.r*w/1280,0,TAU);ctx.fill();
+    // Slow, seamless diagonal drift over the 22-second starfield loop.
+    // Each layer moves slightly differently to create gentle parallax.
+    const driftX=(s.speed*.0038)*Math.sin(a+s.phase*.18);
+    const driftY=(s.speed*.0032)*Math.cos(a+s.phase*.18);
+    const x=((s.x+driftX+1)%1)*w;
+    const y=((s.y+driftY+1)%1)*h;
+    ctx.beginPath();ctx.arc(x,y,s.r*w/1280,0,TAU);ctx.fill();
   }
   const vignette=ctx.createRadialGradient(w*.5,h*.5,w*.1,w*.5,h*.5,w*.74);
   vignette.addColorStop(0,'rgba(0,0,0,.08)');vignette.addColorStop(1,'rgba(0,0,0,.67)');
@@ -178,6 +184,18 @@ function draw(ctx,w,h,time,lines,options={}){
   const viewTime=t;
   const longGap=7;
   const visible=[];
+  // For long breaks, hide everything until 3s before the NEXT sung phrase.
+  // In the opening intro, title + singer are shown instead of lyrics.
+  let instrumentalGap=null;
+  if(lines[0].t>=longGap && t<lines[0].t)
+    instrumentalGap={from:0,to:lines[0].t,isOpening:true};
+  for(let n=0;n<lines.length-1;n++){
+    const from=getEnd(n),to=lines[n+1].t;
+    if(to-from>=longGap && t>=from && t<to){
+      instrumentalGap={from,to,isOpening:false};
+      break;
+    }
+  }
   for(let slot=0;slot<2;slot++){
     let choice=-1,revealTime=Infinity;
     for(let i=slot;i<lines.length;i+=2){
@@ -213,6 +231,18 @@ function draw(ctx,w,h,time,lines,options={}){
     visible.push({line:lines[choice],absolute:choice,slot,opacity});
   }
 
+  if(instrumentalGap){
+    // Clear both stale lines throughout the instrumental break, only
+    // revealing the next one during its final three seconds.
+    visible.length=0;
+    const nextIndex=lines.findIndex(l=>l.t>t);
+    if(nextIndex>=0 && t>=instrumentalGap.to-lead){
+      const cue=lines[nextIndex];
+      visible.push({line:cue,absolute:nextIndex,slot:nextIndex%2,
+        opacity:Math.max(0,Math.min(1,(t-(cue.t-lead))/.45))});
+    }
+  }
+
   // When the very last lyric begins, it takes over the whole screen.
   // Hold through the last sung word, then fade it out over 1 second.
   if(t>=finalStart && t<finalEnd+1.04 && intro===0){
@@ -237,11 +267,11 @@ function draw(ctx,w,h,time,lines,options={}){
     const alpha=(1-Math.pow(1-fadeIn,3))*fadeOut;
     const scale=1+.015*Math.max(0,Math.min(1,t/Math.max(1,titleEnd)));
     ctx.save();ctx.globalAlpha=alpha;ctx.translate(640,singer?329:356);ctx.scale(scale,scale);
-    let size=76;
-    while(size>32){
+    let size=102;
+    while(size>40){
       ctx.font='750 '+size+'px Inter,Arial,sans-serif';
       if(ctx.measureText(title).width<1090)break;
-      size-=2;
+      size-=3;
     }
     ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(128,90,235,.60)';ctx.shadowBlur=36;
     ctx.textAlign='center';ctx.textBaseline='middle';
@@ -340,42 +370,28 @@ function draw(ctx,w,h,time,lines,options={}){
   // It is time-derived, so preview and recorded frames stay identical.
   const isOutro=drawOutro(ctx,t,finalEnd,Number(options.duration)||0,options.logoImage);
 
-  // Approved Lyrica Studio logo ribbon: only in instrumental regions
-  // of at least seven seconds. Opacity/position derive from audio time,
-  // so preview and exported video have identical smooth transitions.
+  // Full-length instrumental interlude branding, ending before lyrics return.
+  // Opening title takes precedence; title and logo never overlap.
   const logo=options.logoImage;
-  if(!isOutro && t<finalEnd && logo?.complete&&logo.naturalWidth>0){
-    const intervals=[];
-    const opening=Number(lines[0]?.t);
-    if(Number.isFinite(opening)&&opening>=7)intervals.push({from:0,to:opening});
-    for(let i=0;i<lines.length-1;i++){
-      const from=getEnd(i),to=lines[i+1].t;
-      if(Number.isFinite(from)&&Number.isFinite(to)&&to-from>=7)
-        intervals.push({from,to});
-    }
-    const duration=Number(options.duration)||0;
-    const finalEnd=getEnd(lines.length-1);
-    if(duration-finalEnd>=7)intervals.push({from:finalEnd,to:duration});
-    for(const gap of intervals){
-      const start=gap.from+.7,finish=Math.min(gap.from+5.1,gap.to-3.2);
-      if(finish-start<1.2||t<start||t>finish)continue;
-      const enter=Math.max(0,Math.min(1,(t-start)/.65));
-      const leave=Math.max(0,Math.min(1,(finish-t)/.65));
-      const eased=1-Math.pow(1-enter,3);
+  if(instrumentalGap && logo?.complete && logo.naturalWidth>0 && !isOutro){
+    const beginning=instrumentalGap.from+(instrumentalGap.isOpening?2.5:.8);
+    const end=instrumentalGap.to-3.1;
+    const openingTitleIsVisible=instrumentalGap.isOpening && !!title && titleEnd>1.3;
+    if(!openingTitleIsVisible && end-beginning>=.9 && t>=beginning && t<=end){
+      const entering=Math.max(0,Math.min(1,(t-beginning)/.8));
+      const leaving=Math.max(0,Math.min(1,(end-t)/.8));
+      const eased=1-Math.pow(1-entering,3);
       ctx.save();
-      ctx.globalAlpha=eased*leave*.94;
-      ctx.translate(0,-20*(1-eased)-10*(1-leave));
-      const boxX=418,boxY=38,boxW=444,boxH=137;
-      ctx.fillStyle='rgba(7,4,17,.82)';
-      ctx.shadowColor='rgba(167,102,255,.36)';ctx.shadowBlur=22;
-      ctx.beginPath();
-      if(typeof ctx.roundRect==='function')ctx.roundRect(boxX,boxY,boxW,boxH,25);
-      else ctx.rect(boxX,boxY,boxW,boxH);
-      ctx.fill();ctx.shadowBlur=0;
-      ctx.strokeStyle='rgba(176,124,255,.38)';ctx.lineWidth=1.3;ctx.stroke();
-      ctx.drawImage(logo,boxX+16,boxY+9,boxW-32,boxH-18);
+      ctx.globalAlpha=eased*leaving*.95;
+      const bob=Math.sin(t*.65)*3;
+      const boxX=405,boxY=43+bob,boxW=470,boxH=151;
+      ctx.shadowColor='rgba(162,96,255,.30)';ctx.shadowBlur=18;
+      ctx.fillStyle='rgba(9,5,24,.78)';
+      rounded(ctx,boxX,boxY,boxW,boxH,24);ctx.fill();
+      ctx.shadowBlur=0;ctx.strokeStyle='rgba(187,143,255,.43)';
+      ctx.lineWidth=1.5;ctx.stroke();
+      ctx.drawImage(logo,boxX+14,boxY+9,boxW-28,boxH-18);
       ctx.restore();
-      break;
     }
   }
   ctx.restore();
