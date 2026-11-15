@@ -24,6 +24,10 @@ app = FastAPI(title="Lyra Studio separation backend")
 
 # Server-side allowlist. Never execute a model identifier supplied by the user.
 PRESETS = {
+    "kim_vocal_2": ("model", "Kim_Vocal_2.onnx"),
+    "kim_vocal_1": ("model", "Kim_Vocal_1.onnx"),
+    "kim_inst": ("model", "Kim_Inst.onnx"),
+    "uvr_inst_hq3": ("model", "UVR-MDX-NET-Inst_HQ_3.onnx"),
     "roformer_hq": ("model", "model_bs_roformer_ep_317_sdr_12.9755.ckpt"),
     "instrumental_clean": ("ensemble", "instrumental_clean"),
     "instrumental_full": ("ensemble", "instrumental_full"),
@@ -87,7 +91,7 @@ def run_engine(input_path: Path, result_path: Path, preset: str):
 
 
 @app.post("/api/separate")
-async def separate(file: UploadFile = File(...), model: str = Form("roformer_hq")):
+async def separate(file: UploadFile = File(...), model: str = Form("kim_vocal_2")):
     if model not in PRESETS:
         raise HTTPException(400, "Unsupported separation preset")
     extension = Path(file.filename or "").suffix.lower()
