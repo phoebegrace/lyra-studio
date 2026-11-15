@@ -157,7 +157,7 @@ $('alignLyrics').onclick=async()=>{
 $('shiftTiming').onclick=()=>{if(!lines.length)return;const shift=Number($('timeShift').value);if(!Number.isFinite(shift)||shift< -30||shift>30){$('videoStatus').textContent='Enter a shift between -30 and +30 seconds.';return;}lines=lines.map(line=>({...line,t:Math.max(0,line.t+shift),words:line.words?.map(w=>({...w,start:Math.max(0,w.start+shift)}))}));$('lrc').value=LyraAlignment.toLrc(lines);$('videoStatus').textContent='Shifted timestamps by '+shift+' seconds.';update()};
 $('saveLrc').onclick=()=>{if(!lines.length){$('videoStatus').textContent='Load or align lyrics first.';return}downloadText('lyra-lyrics.lrc',LyraAlignment.toLrc(lines))};
 $('saveSrt').onclick=()=>{if(!lines.length){$('videoStatus').textContent='Load or align lyrics first.';return}downloadText('lyra-lyrics.srt',LyraAlignment.toSrt(lines,audio.duration||0))};
-$('sample').onclick=()=>{$('lrc').value='[00:02.00]Sing along with Lyra\n[00:06.00]Every word lights up\n[00:10.00]Make this song your own';$('apply').click()};
+$('sample').onclick=()=>{$('lrc').value='[00:02.00]Sing along with Lyra\n[00:06.00]Every word lights up\n[00:10.00]Make this song your own\n[00:14.00]Shine among the stars';$('apply').click()};
 $('bgColor').oninput=update;
 $('backgroundMode').onchange=update;
 $('fullPreview').onclick=()=>{const element=$('videoGalaxyCanvas');if(document.fullscreenElement)document.exitFullscreen();else element.requestFullscreen?.().catch(error=>$('videoStatus').textContent='Fullscreen unavailable: '+error.message)};
