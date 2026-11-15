@@ -57,11 +57,23 @@ function draw(ctx,w,h,time,lines,options={}){
   if(!lines?.length){ctx.restore();return}
   let index=-1;
   for(let i=0;i<lines.length;i++){if(t>=lines[i].t)index=i;else break}
+  // Show the first upcoming lyric in white before singing starts.
   if(index<0){
-    const remaining=lines[0].t-t;
-    if(remaining<=5&&remaining>0){
-      ctx.font='600 92px Inter,Arial,sans-serif';ctx.fillStyle='rgba(255,255,255,.96)';
-      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(Math.ceil(remaining)),640,360);
+    const upcoming=lines[0];
+    if(upcoming && upcoming.t-t<=7){
+      let fontSize=64;
+      const tokens=upcoming.text.split(/\\s+/).filter(Boolean).map(text=>({text}));
+      let rows=[];
+      while(fontSize>=34){
+        ctx.font='750 '+fontSize+'px Inter,Arial,sans-serif';
+        rows=wrap(ctx,tokens,1090);
+        if(rows.length<=3)break;
+        fontSize-=3;
+      }
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffffff';
+      ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=16;
+      const step=fontSize*1.38;
+      rows.forEach((row,i)=>ctx.fillText(row.map(x=>x.text).join(' '),640,360-(rows.length-1)*step/2+i*step));
     }
     ctx.restore();return;
   }
@@ -70,8 +82,25 @@ function draw(ctx,w,h,time,lines,options={}){
   const explicitEnd=Number(line.end);
   const end=Number.isFinite(explicitEnd)&&explicitEnd>line.t ? explicitEnd :
     Math.min(next?.t ?? (line.t+5),line.t+5);
-  // Timed SRT end times also control when lyrics disappear in the exported video.
-  if(t>=end){ctx.restore();return}
+  // In breaks, preview the upcoming line in white, without coloring it early.
+  if(t>=end){
+    if(next && next.t-t<=7){
+      let fontSize=64;
+      const tokens=next.text.split(/\\s+/).filter(Boolean).map(text=>({text}));
+      let rows=[];
+      while(fontSize>=34){
+        ctx.font='750 '+fontSize+'px Inter,Arial,sans-serif';
+        rows=wrap(ctx,tokens,1090);
+        if(rows.length<=3)break;
+        fontSize-=3;
+      }
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffffff';
+      ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=16;
+      const step=fontSize*1.38;
+      rows.forEach((row,i)=>ctx.fillText(row.map(x=>x.text).join(' '),640,360-(rows.length-1)*step/2+i*step));
+    }
+    ctx.restore();return;
+  }
   const raw=line.text.split(/\s+/).filter(Boolean);
   const words=raw.map((text,i)=>({text,index:i}));
   if(!words.length){ctx.restore();return}
@@ -94,13 +123,30 @@ function draw(ctx,w,h,time,lines,options={}){
     let x=640-total/2;
     for(let j=0;j<row.length;j++){
       const word=row[j];
-      const start=line.words?.[word.index]?.start;
-      const threshold=Number.isFinite(start)?start:line.t; // SRT/LRC only time whole lines; never invent word-level sync.
-      const spoken=t>=threshold;
-      ctx.fillStyle=spoken?(options.highlight||'#c8b8ff'):'#ffffff';
-      ctx.shadowColor=spoken?'rgba(177,149,255,.48)':'rgba(0,0,0,.65)';
-      ctx.shadowBlur=spoken?19:13;
-      ctx.fillText(word.text,x,firstY+r*leading);
+      const explicit=line.words?.[word.index];
+      const isTimed=Number.isFinite(explicit?.start);
+      // Real word timestamps take priority; SRT-only files get a smooth visual
+      // sweep across the line. Do not mistake the sweep for measured word timing.
+      const start=isTimed?explicit.start:line.t+(end-line.t)*word.index/words.length;
+      const finish=isTimed
+        ? (Number.isFinite(explicit.end)&&explicit.end>start?explicit.end:
+          (line.words?.[word.index+1]?.start ?? end))
+        : line.t+(end-line.t)*(word.index+1)/words.length;
+      const progress=Math.max(0,Math.min(1,(t-start)/Math.max(.08,finish-start)));
+      const y=firstY+r*leading;
+      // Upcoming letters remain white. The chosen sync color progressively
+      // fills just the portion that has been sung.
+      ctx.fillStyle='#ffffff';
+      ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=13;
+      ctx.fillText(word.text,x,y);
+      if(progress>0){
+        ctx.save();ctx.beginPath();
+        ctx.rect(x-2,y-size*.68,(lengths[j]+4)*progress,size*1.4);ctx.clip();
+        ctx.fillStyle=options.highlight||'#c8b8ff';
+        ctx.shadowColor='rgba(177,149,255,.38)';ctx.shadowBlur=11;
+        ctx.fillText(word.text,x,y);
+        ctx.restore();
+      }
       x+=lengths[j]+gap;
     }
   }
