@@ -48,3 +48,35 @@ Visit http://localhost:8000 in Chrome. For WebM audio export, browser capture su
 4. Preview the result, use **Timing shift** if the entire song needs an offset, and download `.srt` or `.lrc`.
 
 This is heuristic word matching, **not precise forced alignment**. Missing and misheard words are interpolated, and repeated choruses can be misaligned. Check the preview before final export. When you manually edit LRC and press **Apply lyrics**, per-word precision falls back to approximate timing until you realign.
+
+
+## Cloud separation (Vercel + Railway)
+
+The Vercel deployment serves only the browser UI. The dedicated **Lyra Studio Audio**
+Railway service exposes the protected separation API:
+`https://lyra-audio-worker-production.up.railway.app`.
+
+The separation UI asks for a private processing key. In Railway, open **Lyra Studio
+Audio → lyra-audio-worker → Variables** and find `LYRA_API_KEY`. Enter its value
+in the browser's **Separate Audio** tab. **Never commit or share this value.**
+The browser uses the key in request headers; it is not written to GitHub.
+
+Default separation: **instrumental_clean** Audio Separator ensemble. Other presets
+allow preserving fullness, vocal isolation, Kim Vocal or Demucs comparisons.
+Exports are uncompressed WAV files; source fidelity and model artifacts still
+affect the result.
+
+Railway deployment has a dedicated `/backend` project root, and runs:
+`uvicorn app:app --host 0.0.0.0 --port $PORT`.
+It requires CPU RAM and storage for large model weights, Python 3.11, FFmpeg and
+the dependencies in `backend/requirements.txt`. Model downloads happen on demand,
+and the first separation can take a long time. Railway's normal CPU service
+may lack sufficient memory for larger ensembles; GPU hosting is preferable for
+high-speed reliable RoFormer separation.
+
+The API uses a bearer key, serializes processing requests, caps uploads at 100 MB,
+and restricts browser CORS origins. It remains a **personal-use prototype**;
+do not expose your key or distribute the endpoint. There is currently no job
+queue, progress polling, automatic cleanup, durable storage, or usage quota.
+Railway resources may incur costs even when idle. Files are stored on an ephemeral
+filesystem and can disappear on redeployment.
