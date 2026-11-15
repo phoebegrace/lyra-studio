@@ -172,7 +172,7 @@ async function transcribe(){
     if(job!==epoch)throw Error('Cancelled');
     const words=await new Promise((resolve,reject)=>{
       jobReject=reject;
-      worker=new Worker('/timing-worker.js?v=2',{type:'module'});
+      worker=new Worker('/timing-worker.js?v=3',{type:'module'});
       worker.onmessage=e=>{const d=e.data||{};if(d.error)reject(Error(d.error));else if(Array.isArray(d.words))resolve(d.words);else if(d.status)progress(d.status,d.percent)};
       worker.onerror=e=>reject(Error(e.message||'The speech model could not load.'));
       worker.postMessage({audio:samples,model:'tiny-en'},[samples.buffer]);
