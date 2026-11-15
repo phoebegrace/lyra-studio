@@ -131,6 +131,10 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
           <button type="button" class="sync-color-preset" data-sync-color="#ff6f9b" style="--swatch:#ff6f9b" aria-label="Pink" aria-pressed="false"></button>
           <input id="syncHighlightColor" type="color" value="#c9b8ff" aria-label="Custom sung lyrics color">
         </div>
+        <label class="field" style="margin-top:12px">Sync color timing (seconds)
+          <input id="syncColorDelay" type="number" value="0" step="0.05" min="-2" max="2" aria-describedby="syncDelayHelp">
+        </label>
+        <p class="detail" id="syncDelayHelp" style="margin-top:4px">If the color changes too early, use +0.1. Negative values make it change sooner. This only shifts the highlight, not the lyric line.</p>
       </div>
     </section>
   </div>
@@ -177,7 +181,7 @@ const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({.
 function render(){
   const left=activeCountdown?Math.max(0,(countdownDeadline-performance.now())/1000):0;
   LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,audio.currentTime||0,adjusted(),{
-    countdown:left,highlight:highlightInput.value,galaxyTime:performance.now()/1000,
+    countdown:left,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000,
     duration:audio.duration||0
   });
   const current=audio.currentTime||0;
@@ -515,7 +519,7 @@ $('export').onclick=async()=>{
     const currentLines=adjusted(),duration=audio.duration||0;
     const paint=()=>{
       const left=Math.max(0,(deadline-performance.now())/1000);
-      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,highlight:'#c9b8ff',galaxyTime:performance.now()/1000});
+      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,highlight:highlightInput.value,highlightDelay:Number($('syncColorDelay').value)||0,galaxyTime:performance.now()/1000});
       if(!playStarted&&left<=0){playStarted=true;audio.play().catch(e=>{status('exportStatus','Audio playback failed: '+e.message,'error');if(recorder.state!=='inactive')recorder.stop()})}
       if(recording)frame=requestAnimationFrame(paint);
     };
