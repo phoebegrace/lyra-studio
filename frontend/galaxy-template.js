@@ -118,6 +118,29 @@ function draw(ctx,w,h,time,lines,options={}){
     visible.push({line:lines[choice],absolute:choice,slot,opacity});
   }
 
+  // Opening song-title card plays ONLY with the instrumental, never under
+  // lyrics. Clear it three seconds before the first sung phrase appears.
+  const title=String(options.songTitle||'').trim();
+  const firstStart=Number(lines[0]?.t);
+  const titleEnd=Math.max(0,firstStart-3.15);
+  if(title && intro===0 && Number.isFinite(firstStart) && titleEnd>1.3 && t<titleEnd){
+    const fadeIn=Math.max(0,Math.min(1,t/.65));
+    const fadeOut=Math.max(0,Math.min(1,(titleEnd-t)/.75));
+    const alpha=(1-Math.pow(1-fadeIn,3))*fadeOut;
+    const scale=1+.015*Math.max(0,Math.min(1,t/Math.max(1,titleEnd)));
+    ctx.save();ctx.globalAlpha=alpha;ctx.translate(640,356);ctx.scale(scale,scale);
+    let size=76;
+    while(size>32){
+      ctx.font='750 '+size+'px Inter,Arial,sans-serif';
+      if(ctx.measureText(title).width<1090)break;
+      size-=2;
+    }
+    ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(128,90,235,.60)';ctx.shadowBlur=36;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(title,0,0);
+    ctx.restore();
+  }
+
   // Countdown only at the start or ahead of a genuinely long instrumental
   // gap. The timer is small and sits ABOVE the lyric that is about to begin.
   let timerIndex=-1,timerValue=0;
