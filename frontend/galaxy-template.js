@@ -64,31 +64,62 @@ function draw(ctx,w,h,time,lines,options={}){
   background(ctx,w,h,galaxyT);
   ctx.save();ctx.scale(w/1280,h/720);
   if(!lines?.length){ctx.restore();return}
-  const pageSize=2;
-  let active=-1;
-  for(let i=0;i<lines.length;i++){
-    if(Number.isFinite(lines[i].t)&&t>=lines[i].t)active=i;
-    else break;
-  }
   const getEnd=index=>{
     const cue=lines[index],following=lines[index+1];
-    const end=Number(cue.end);
-    return Number.isFinite(end)&&end>cue.t?end:Math.min(following?.t??cue.t+5,cue.t+5);
+    const explicit=cue?.end;
+    return Number.isFinite(explicit)&&explicit>cue.t
+      ? explicit:Math.min(following?.t??cue.t+5,cue.t+5);
   };
-  let pageStart=Math.floor(Math.max(0,active)/pageSize)*pageSize;
-  // Advance from the prior pair as soon as its second lyric has ended;
-  // the next pair is already visible in preparation for the next verse.
-  if(active>=0&&active%pageSize===pageSize-1&&active+1<lines.length&&t>=getEnd(active)){
-    pageStart+=pageSize;
-  }
-  const page=lines.slice(pageStart,pageStart+pageSize);
+  const lead=3; // Show a lyric only three seconds before it begins.
+  const swapLead=1.15; // Replace the older line near the end of the current line.
+  const fade=.3;
+  const intro=Math.max(0,Number(options.countdown)||0);
   const rowY=[278,458];
   const syncColor=options.highlight||'#c9b8ff',delay=Number(options.highlightDelay)||0;
-  const intro=Math.max(0,Number(options.countdown)||0);
 
-  // A short countdown is used only on the very first lyric, or where the
-  // instrumental break between phrases is genuinely long (>=7 seconds).
-  // Its last three seconds show above the next lyric, never on every line.
+  // Alternating stable positions: #1 at the top, #2 at the bottom,
+  // then #3 replaces #1 shortly before #2 finishes, and so forth.
+  // The intro and long instrumental pauses stay uncluttered.
+  const viewTime=t;
+  const longGap=7;
+  const visible=[];
+  for(let slot=0;slot<2;slot++){
+    let choice=-1,revealTime=Infinity;
+    for(let i=slot;i<lines.length;i+=2){
+      const cue=lines[i];
+      if(!Number.isFinite(cue.t))continue;
+      let eligible=cue.t-lead;
+      if(i>=2){
+        const preceding=getEnd(i-1);
+        // A new stanza replaces the previous stanza only when its
+        // immediate predecessor is almost finished. During very long
+        // breaks, don't reveal it until shortly before it is sung.
+        eligible=Math.max(eligible,preceding-swapLead);
+      }
+      if(viewTime>=eligible){
+        choice=i;revealTime=eligible;
+      }else break;
+    }
+    if(choice<0)continue;
+    const latestSung=lines.findLastIndex(l=>Number.isFinite(l.t)&&l.t<=viewTime);
+    // If the song is in a long instrumental break, clear the previous
+    // couple of lines. They return only when a new phrase approaches.
+    if(latestSung>=0){
+      const after=getEnd(latestSung);
+      const next=lines[latestSung+1];
+      const gap=next?.t-after;
+      if(gap>=longGap && viewTime>after+.65 && viewTime<next.t-lead){
+        continue;
+      }
+      // After the final lyric ends, clear out the whole lyric area.
+      if(!next && viewTime>after+.65)continue;
+    }
+    const opacity=Math.max(0,Math.min(1,(viewTime-revealTime)/fade));
+    visible.push({line:lines[choice],absolute:choice,slot,opacity});
+  }
+
+  // Countdown only at the start or ahead of a genuinely long instrumental
+  // gap. The timer is small and sits ABOVE the lyric that is about to begin.
   let timerIndex=-1,timerValue=0;
   if(intro>0){
     timerIndex=0;timerValue=Math.ceil(intro);
@@ -96,18 +127,18 @@ function draw(ctx,w,h,time,lines,options={}){
     const nextIndex=lines.findIndex(l=>Number.isFinite(l.t)&&l.t>t);
     if(nextIndex>=0){
       const remaining=lines[nextIndex].t-t;
-      const isFirst=nextIndex===0;
-      const previousEnd=isFirst?0:getEnd(nextIndex-1);
-      const isLongBreak=!isFirst&&lines[nextIndex].t-previousEnd>=7;
-      if((isFirst||isLongBreak)&&remaining>0&&remaining<=3){
+      const previousEnd=nextIndex===0?0:getEnd(nextIndex-1);
+      const gap=lines[nextIndex].t-previousEnd;
+      if((nextIndex===0||gap>=longGap)&&remaining>0&&remaining<=3){
         timerIndex=nextIndex;
         timerValue=Math.ceil(remaining);
       }
     }
   }
 
-  for(let p=0;p<page.length;p++){
-    const line=page[p],absolute=pageStart+p;
+  for(const item of visible){
+    const {line,absolute,slot:p,opacity}=item;
+    ctx.save();ctx.globalAlpha=opacity;
     const raw=String(line.text||'').trim().split(/\s+/).filter(Boolean);
     if(!raw.length)continue;
     const words=raw.map((text,index)=>({text,index}));
@@ -123,8 +154,8 @@ function draw(ctx,w,h,time,lines,options={}){
     const lead=fontSize*1.18;
     const middle=rowY[p],firstY=middle-(rows.length-1)*lead/2;
     const end=getEnd(absolute);
-    const isCurrent=absolute===active&&t<end&&intro===0;
-    const isFinished=absolute<active||(absolute===active&&t>=end);
+    const isCurrent=t>=line.t&&t<end&&intro===0;
+    const isFinished=t>=end;
     ctx.textAlign='left';ctx.textBaseline='middle';
     for(let r=0;r<rows.length;r++){
       const row=rows[r],gap=ctx.measureText(' ').width;
@@ -153,10 +184,11 @@ function draw(ctx,w,h,time,lines,options={}){
         x+=width+gap;
       }
     }
+    ctx.restore();
   }
 
-  if(timerValue>0&&timerIndex>=pageStart&&timerIndex<pageStart+page.length){
-    const p=timerIndex-pageStart;
+  if(timerValue>0){
+    const p=Math.max(0,timerIndex)%2;
     ctx.font='750 25px Inter,Arial,sans-serif';
     ctx.textBaseline='middle';ctx.textAlign='center';
     ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=10;
