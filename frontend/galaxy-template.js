@@ -62,7 +62,7 @@ function draw(ctx,w,h,time,lines,options={}){
     const upcoming=lines[0];
     if(upcoming && upcoming.t-t<=7){
       let fontSize=64;
-      const tokens=upcoming.text.split(/\\s+/).filter(Boolean).map(text=>({text}));
+      const tokens=upcoming.text.split(/\s+/).filter(Boolean).map(text=>({text}));
       let rows=[];
       while(fontSize>=34){
         ctx.font='750 '+fontSize+'px Inter,Arial,sans-serif';
@@ -86,7 +86,7 @@ function draw(ctx,w,h,time,lines,options={}){
   if(t>=end){
     if(next && next.t-t<=7){
       let fontSize=64;
-      const tokens=next.text.split(/\\s+/).filter(Boolean).map(text=>({text}));
+      const tokens=next.text.split(/\s+/).filter(Boolean).map(text=>({text}));
       let rows=[];
       while(fontSize>=34){
         ctx.font='750 '+fontSize+'px Inter,Arial,sans-serif';
