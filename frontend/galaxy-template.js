@@ -217,6 +217,44 @@ function draw(ctx,w,h,time,lines,options={}){
     ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=10;
     ctx.fillText(String(timerValue),640,rowY[p]-83);
   }
+  // Approved Lyrica Studio logo ribbon: only in instrumental regions
+  // of at least seven seconds. Opacity/position derive from audio time,
+  // so preview and exported video have identical smooth transitions.
+  const logo=options.logoImage;
+  if(logo?.complete&&logo.naturalWidth>0){
+    const intervals=[];
+    const opening=Number(lines[0]?.t);
+    if(Number.isFinite(opening)&&opening>=7)intervals.push({from:0,to:opening});
+    for(let i=0;i<lines.length-1;i++){
+      const from=getEnd(i),to=lines[i+1].t;
+      if(Number.isFinite(from)&&Number.isFinite(to)&&to-from>=7)
+        intervals.push({from,to});
+    }
+    const duration=Number(options.duration)||0;
+    const finalEnd=getEnd(lines.length-1);
+    if(duration-finalEnd>=7)intervals.push({from:finalEnd,to:duration});
+    for(const gap of intervals){
+      const start=gap.from+.7,finish=Math.min(gap.from+5.1,gap.to-3.2);
+      if(finish-start<1.2||t<start||t>finish)continue;
+      const enter=Math.max(0,Math.min(1,(t-start)/.65));
+      const leave=Math.max(0,Math.min(1,(finish-t)/.65));
+      const eased=1-Math.pow(1-enter,3);
+      ctx.save();
+      ctx.globalAlpha=eased*leave*.94;
+      ctx.translate(0,-20*(1-eased)-10*(1-leave));
+      const boxX=418,boxY=38,boxW=444,boxH=137;
+      ctx.fillStyle='rgba(7,4,17,.82)';
+      ctx.shadowColor='rgba(167,102,255,.36)';ctx.shadowBlur=22;
+      ctx.beginPath();
+      if(typeof ctx.roundRect==='function')ctx.roundRect(boxX,boxY,boxW,boxH,25);
+      else ctx.rect(boxX,boxY,boxW,boxH);
+      ctx.fill();ctx.shadowBlur=0;
+      ctx.strokeStyle='rgba(176,124,255,.38)';ctx.lineWidth=1.3;ctx.stroke();
+      ctx.drawImage(logo,boxX+16,boxY+9,boxW-32,boxH-18);
+      ctx.restore();
+      break;
+    }
+  }
   ctx.restore();
 }
 
