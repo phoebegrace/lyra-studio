@@ -73,13 +73,13 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
       <label class="pick" for="vocalFile"><strong>Choose vocals file</strong><span id="vocalName">No file selected</span><input type="file" accept="audio/*,.wav,.flac,.mp3,.m4a,.ogg" id="vocalFile"></label>
     </section>
     <section class="card">
-      <div class="stephead"><span class="number">02</span><div><h2>Get timed lyrics</h2><p class="detail">AI detects the lyrics and their timings.</p></div></div>
+      <div class="stephead"><span class="number">02</span><div><h2>Get timed lyrics</h2><p class="detail">Whisper AI detects singing and suggests line timings. Review before exporting.</p></div></div>
       <div class="row"><button class="btn" id="generate">Generate timed lyrics</button><button class="btn secondary" id="cancel" disabled>Cancel</button></div>
       <div class="progress" role="progressbar" aria-label="Lyric generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressTrack"><div id="progressFill"></div></div>
       <div class="message" id="lyricStatus" role="status">Upload vocals, then click Generate.</div>
       <div id="lyricEditor" class="hidden" style="margin-top:13px">
         <label class="field">Review your timed lyrics<textarea id="lrc" spellcheck="false" placeholder="[00:05.00]First lyric line"></textarea></label>
-        <div class="row"><button class="btn secondary" id="apply">Apply edits</button><button class="btn secondary" id="saveLrc">Download LRC</button><button class="btn secondary" id="saveSrt">Download SRT</button></div>
+        <div class="row"><button class="btn secondary" id="apply">Apply edits</button><button class="btn secondary" id="saveLrc">Download LRC</button><button class="btn secondary" id="saveSrt">Download SRT for video</button></div><p class="detail" style="margin-top:7px">SRT for video automatically includes your selected countdown. LRC follows the original audio timing.</p>
         <div class="sync-box" id="syncBox">
           <div class="stephead" style="margin-bottom:5px"><span class="number">♫</span><div><h2>Fix lyric timing</h2><p class="detail">Listen to the vocals. Tap once when each line starts.</p></div></div>
           <div class="row"><button class="btn secondary" id="startSync">Start listening</button><button class="btn secondary" id="syncUndo" disabled>Undo last</button><span class="sync-clock" id="syncClock">00:00.00</span></div>
@@ -134,7 +134,7 @@ const groupWords=words=>{
   const groups=[];let group=[];
   words.forEach((w,i)=>{const prev=words[i-1];if(group.length&&(group.length>=8||(prev&&w.start-prev.end>1.1))){groups.push(group);group=[]}group.push(w)});
   if(group.length)groups.push(group);
-  return groups.map(g=>({t:g[0].start,text:g.map(w=>w.text).join(' '),words:g}));
+  return groups.map(g=>({t:g[0].start,end:g[g.length-1].end,text:g.map(w=>w.text).join(' '),words:g}));
 };
 const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({...l,t:Math.max(0,l.t+n),words:l.words?.map(w=>({...w,start:Math.max(0,w.start+n)}))})).sort((a,b)=>a.t-b.t)};
 function render(){
@@ -186,10 +186,10 @@ async function transcribe(){
     if(job!==epoch)throw Error('Cancelled');
     const transcription=await new Promise((resolve,reject)=>{
       jobReject=reject;
-      worker=new Worker('/timing-worker.js?v=4',{type:'module'});
+      worker=new Worker('/timing-worker.js?v=5',{type:'module'});
       worker.onmessage=e=>{const d=e.data||{};if(d.error)reject(Error(d.error));else if(Array.isArray(d.words))resolve({words:d.words,approximate:!!d.approximate});else if(d.status)progress(d.status,d.percent)};
       worker.onerror=e=>reject(Error(e.message||'The speech model could not load.'));
-      worker.postMessage({audio:samples,model:'tiny-en'},[samples.buffer]);
+      worker.postMessage({audio:samples,model:'base-en'},[samples.buffer]);
     });
     if(job!==epoch)throw Error('Cancelled');
     return {...transcription,duration};
@@ -330,7 +330,13 @@ $('align').onclick=async()=>{
 };
 function downloadFile(filename,body){const url=URL.createObjectURL(new Blob([body],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),15000)}
 $('saveLrc').onclick=()=>downloadFile('lyra-lyrics.lrc',LyraAlignment.toLrc(adjusted()));
-$('saveSrt').onclick=()=>downloadFile('lyra-lyrics.srt',LyraAlignment.toSrt(adjusted(),audio.duration||0));
+$('saveSrt').onclick=()=>{
+  const intro=Number($('countdown').value)||0;
+  const shifted=adjusted().map(l=>({...l,t:l.t+intro,end:Number.isFinite(l.end)?l.end+intro:undefined,
+    words:l.words?.map(w=>({...w,start:w.start+intro,end:Number.isFinite(w.end)?w.end+intro:undefined}))}));
+  downloadFile('lyra-karaoke-video.srt',LyraAlignment.toSrt(shifted,(audio.duration||0)+intro));
+  status('lyricStatus',intro?'SRT exported with '+intro+' seconds added for the video countdown.':'SRT exported using your audio timestamps.');
+};
 $('preview').onclick=async()=>{
   if(!lines.length){status('exportStatus','Generate timed lyrics first.','error');return}
   if(!audio.src){status('exportStatus','Add an instrumental in step 3.','error');return}
