@@ -1,4 +1,4 @@
-/* Lyra Studio — original seamless galaxy, minimal lyric-only presentation. */
+/* Lyrica Studio — original seamless galaxy, lyric-only presentation. */
 (function(){
 'use strict';
 const TAU=Math.PI*2, PERIOD=22;
@@ -193,46 +193,6 @@ function draw(ctx,w,h,time,lines,options={}){
     ctx.textBaseline='middle';ctx.textAlign='center';
     ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=10;
     ctx.fillText(String(timerValue),640,rowY[p]-83);
-  }
-  // A short branded ribbon appears only during a real instrumental stretch:
-  // opening, a gap of 7+ seconds, or an extended outro. Never cover the lyrics.
-  const duration=Number(options.duration)||0;
-  const intervals=[];
-  if(lines[0].t>=7)intervals.push({from:0,to:lines[0].t});
-  for(let i=0;i<lines.length-1;i++){
-    const from=getEnd(i),to=lines[i+1].t;
-    if(to-from>=7)intervals.push({from,to});
-  }
-  if(duration>0 && duration-getEnd(lines.length-1)>=7){
-    intervals.push({from:getEnd(lines.length-1),to:duration});
-  }
-  for(const interval of intervals){
-    const beginning=interval.from+.7;
-    const ending=Math.min(interval.from+5.2,interval.to-3.2);
-    if(ending-beginning<1.25 || t<beginning || t>ending)continue;
-    const entering=Math.max(0,Math.min(1,(t-beginning)/.65));
-    const exiting=Math.max(0,Math.min(1,(ending-t)/.6));
-    const eased=1-Math.pow(1-entering,3);
-    ctx.save();
-    ctx.globalAlpha=eased*exiting*.96;
-    ctx.translate(0,-18*(1-eased)-8*(1-exiting));
-    const rw=406,rh=95,rx=(1280-rw)/2,ry=47;
-    ctx.shadowColor='rgba(151,94,234,.35)';ctx.shadowBlur=23;
-    ctx.fillStyle='rgba(9,9,28,.74)';
-    ctx.beginPath();
-    if(typeof ctx.roundRect==='function')ctx.roundRect(rx,ry,rw,rh,45);
-    else ctx.rect(rx,ry,rw,rh);
-    ctx.fill();ctx.shadowBlur=0;
-    ctx.strokeStyle='rgba(184,140,255,.48)';ctx.lineWidth=1.6;ctx.stroke();
-    const logo=options.logoImage;
-    if(logo?.complete && logo.naturalWidth>0){
-      ctx.drawImage(logo,rx+19,ry+8,rw-38,rh-16);
-    }else{
-      ctx.fillStyle='#e9d8ff';ctx.font='italic 48px Georgia,serif';
-      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Lyra Studio',640,96);
-    }
-    ctx.restore();
-    break;
   }
   ctx.restore();
 }
