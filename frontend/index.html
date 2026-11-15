@@ -79,7 +79,7 @@ details p{font-size:12px;color:#81889b;line-height:1.55}
       <div class="message" id="lyricStatus" role="status">Upload vocals, then click Generate.</div>
       <div id="lyricEditor" class="hidden" style="margin-top:13px">
         <label class="field">Review your timed lyrics<textarea id="lrc" spellcheck="false" placeholder="[00:05.00]First lyric line"></textarea></label>
-        <div class="row"><button class="btn secondary" id="apply">Apply edits</button><button class="btn secondary" id="saveLrc">Download LRC</button><button class="btn secondary" id="saveSrt">Download SRT for video</button></div><p class="detail" style="margin-top:7px">SRT for video automatically includes your selected countdown. LRC follows the original audio timing.</p>
+        <div class="row"><button class="btn secondary" id="apply">Apply edits</button><button class="btn secondary" id="saveLrc">Download LRC</button><button class="btn secondary" id="saveSrt">Download SRT (audio)</button><button class="btn secondary" id="saveVideoSrt">Download SRT (video)</button></div><p class="detail" style="margin-top:7px">Audio SRT uses original song timestamps. Video SRT adds your selected countdown. Both preserve the lyric text.</p>
         <div class="sync-box" id="syncBox">
           <div class="stephead" style="margin-bottom:5px"><span class="number">♫</span><div><h2>Fix lyric timing</h2><p class="detail">Listen to the vocals. Tap once when each line starts.</p></div></div>
           <div class="row"><button class="btn secondary" id="startSync">Start listening</button><button class="btn secondary" id="syncUndo" disabled>Undo last</button><span class="sync-clock" id="syncClock">00:00.00</span></div>
@@ -330,13 +330,21 @@ $('align').onclick=async()=>{
 };
 function downloadFile(filename,body){const url=URL.createObjectURL(new Blob([body],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),15000)}
 $('saveLrc').onclick=()=>downloadFile('lyra-lyrics.lrc',LyraAlignment.toLrc(adjusted()));
-$('saveSrt').onclick=()=>{
-  const intro=Number($('countdown').value)||0;
-  const shifted=adjusted().map(l=>({...l,t:l.t+intro,end:Number.isFinite(l.end)?l.end+intro:undefined,
+function downloadSrtFor(mode){
+  if(!lines.length){status('lyricStatus','Generate or align lyrics first.','error');return}
+  const intro=mode==='video'?(Number($('countdown').value)||0):0;
+  const shifted=adjusted().map(l=>({...l,t:l.t+intro,
+    end:Number.isFinite(l.end)?l.end+intro:undefined,
     words:l.words?.map(w=>({...w,start:w.start+intro,end:Number.isFinite(w.end)?w.end+intro:undefined}))}));
-  downloadFile('lyra-karaoke-video.srt',LyraAlignment.toSrt(shifted,(audio.duration||0)+intro));
-  status('lyricStatus',intro?'SRT exported with '+intro+' seconds added for the video countdown.':'SRT exported using your audio timestamps.');
-};
+  const duration=(Number.isFinite(audio.duration)?audio.duration:0)+intro;
+  downloadFile(mode==='video'?'lyra-karaoke-video.srt':'lyra-original-audio.srt',
+    LyraAlignment.toSrt(shifted,duration));
+  status('lyricStatus',mode==='video'
+    ?'Video SRT downloaded, with '+intro+' seconds of intro countdown.'
+    :'Audio SRT downloaded without countdown. Lyrics use the original song timeline.');
+}
+$('saveSrt').onclick=()=>downloadSrtFor('audio');
+$('saveVideoSrt').onclick=()=>downloadSrtFor('video');
 $('preview').onclick=async()=>{
   if(!lines.length){status('exportStatus','Generate timed lyrics first.','error');return}
   if(!audio.src){status('exportStatus','Add an instrumental in step 3.','error');return}
