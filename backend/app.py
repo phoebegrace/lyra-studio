@@ -30,6 +30,9 @@ PRESETS = {
     "uvr_inst_hq3": ("model", "UVR-MDX-NET-Inst_HQ_3.onnx"),
     "roformer_hq": ("model", "model_bs_roformer_ep_317_sdr_12.9755.ckpt"),
     "instrumental_clean": ("ensemble", "instrumental_clean"),
+    "instrumental_balanced": ("ensemble", "instrumental_balanced"),
+    "vocal_balanced": ("ensemble", "vocal_balanced"),
+    "karaoke": ("ensemble", "karaoke"),
     "instrumental_full": ("ensemble", "instrumental_full"),
     "demucs_ft": ("demucs", "htdemucs_ft"),
 }
@@ -91,7 +94,7 @@ def run_engine(input_path: Path, result_path: Path, preset: str):
 
 
 @app.post("/api/separate")
-async def separate(file: UploadFile = File(...), model: str = Form("kim_vocal_2")):
+async def separate(file: UploadFile = File(...), model: str = Form("instrumental_clean")):
     if model not in PRESETS:
         raise HTTPException(400, "Unsupported separation preset")
     extension = Path(file.filename or "").suffix.lower()
