@@ -231,6 +231,20 @@ function draw(ctx,w,h,time,lines,options={}){
     visible.push({line:lines[choice],absolute:choice,slot,opacity});
   }
 
+  // After returning from an instrumental section, never restore a lyric
+  // from before that break into the spare row.
+  if(!instrumentalGap){
+    let lastBreakEndIndex=-1;
+    for(let n=0;n<lines.length-1;n++){
+      if(lines[n+1].t-getEnd(n)>=longGap && t>=lines[n+1].t)
+        lastBreakEndIndex=n+1;
+    }
+    if(lastBreakEndIndex>=0){
+      for(let j=visible.length-1;j>=0;j--)
+        if(visible[j].absolute<lastBreakEndIndex)visible.splice(j,1);
+    }
+  }
+
   if(instrumentalGap){
     // Clear both stale lines throughout the instrumental break, only
     // revealing the next one during its final three seconds.
