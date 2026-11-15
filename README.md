@@ -39,3 +39,12 @@ Visit http://localhost:8000 in Chrome. For WebM audio export, browser capture su
 - Audio never needs to leave the browser for timing, though model files are downloaded from Hugging Face. Video export is WebM, not MP4, and browser support varies. The exporter is experimental; test with short clips first.
 - The browser audio-export code is experimental, so audio recording behavior can vary by browser and repeated exports may require reloading the page.
 - Do not upload music or lyrics unless you have appropriate rights to use them.
+
+## Align your own lyrics (SRT / LRC)
+
+1. Upload the original song with vocals in **Studio** (the instrumental alone cannot provide word timing).
+2. Open **Lyric Video**, import `.srt` or `.lrc`, or paste plain lyrics.
+3. Click **Align supplied lyrics**. Whisper Tiny estimates vocal word timestamps in the browser, while an order-preserving word matcher retains your supplied words, punctuation and line breaks.
+4. Preview the result, use **Timing shift** if the entire song needs an offset, and download `.srt` or `.lrc`.
+
+This is heuristic word matching, **not precise forced alignment**. Missing and misheard words are interpolated, and repeated choruses can be misaligned. Check the preview before final export. When you manually edit LRC and press **Apply lyrics**, per-word precision falls back to approximate timing until you realign.
