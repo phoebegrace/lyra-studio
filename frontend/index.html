@@ -1,267 +1,277 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lyra Studio — Karaoke Creator</title>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lyra Studio — Make a Karaoke Video</title>
 <style>
-:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#222b42;background:#f7f9fc}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.shell{display:grid;grid-template-columns:224px 1fr;min-height:100vh}.side{background:#fff;border-right:1px solid #e8ecf3;padding:26px 15px;display:flex;flex-direction:column;gap:6px}.brand{font-size:22px;font-weight:850;letter-spacing:-1px;color:#29327d;padding:2px 13px 30px}.brand span{color:#7865df}.nav{padding:13px 14px;border:0;background:transparent;border-radius:10px;text-align:left;color:#748098;font-weight:600}.nav.active{background:#eff0fe;color:#514bc9}.foot{margin-top:auto;font-size:12px;color:#98a0af;padding:15px}main{padding:35px max(25px,5vw);max-width:1640px;width:100%;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px}.muted{color:#8b94a8;font-size:13px}h1{font-size:27px;letter-spacing:-1px;margin:5px 0 8px}h2{font-size:18px;letter-spacing:-.5px;margin:0 0 15px}.card{background:white;border:1px solid #e8edf5;border-radius:16px;padding:23px;box-shadow:0 5px 25px rgba(44,55,99,.025)}.grid{display:grid;grid-template-columns:1.06fr .94fr;gap:21px}.stack{display:grid;gap:20px}.pill{border-radius:30px;background:#edf2ff;color:#514bc9;padding:9px 13px;font-size:12px;font-weight:700}.drop{border:1.5px dashed #cfd5e7;border-radius:13px;padding:32px 16px;text-align:center;background:#fbfcff}.drop input{max-width:100%;margin-top:12px}.button{background:#554fce;color:#fff;border:0;border-radius:9px;padding:11px 17px;font-weight:700}.outline{background:#fff;border:1px solid #dbe0ed;border-radius:9px;padding:10px 16px;color:#36425e;font-weight:650}.actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:14px}.field{display:grid;gap:8px;font-size:13px;font-weight:650;margin:13px 0}.field input,.field select,.field textarea{width:100%;border:1px solid #dbe0eb;border-radius:9px;background:white;padding:11px;color:#283247}.field textarea{min-height:210px;resize:vertical;line-height:1.7;font-family:ui-monospace,monospace}.stage{min-height:290px;aspect-ratio:16/9;border-radius:14px;background:#131d42;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden;padding:25px;color:white}.stage .eyebrow{font-size:10px;letter-spacing:3px;color:#aeb8de;margin-bottom:18px}.lyrics{font-size:clamp(20px,2.7vw,41px);font-weight:800;line-height:1.45;letter-spacing:-1px;overflow-wrap:anywhere}.lyrics span{display:inline-block;margin:0 4px}.next{margin-top:18px;color:#a5aed1;font-size:16px}.status{margin-top:13px;color:#65728c;font-size:13px;line-height:1.5;min-height:20px}audio{width:100%;margin-top:14px}.colorrow{display:grid;grid-template-columns:1fr 1fr;gap:12px}.colorrow input[type=color]{padding:3px;height:40px}.tab{display:none}.tab.active{display:block}.sub{font-size:14px;color:#8b94a8;margin-bottom:23px}.tag{color:#68738a;font-size:12px}.count{font-size:12px;color:#8690a4}.timeline{display:flex;justify-content:space-between;margin-top:12px;font-size:12px;color:#9ca6ba}@media(max-width:900px){.grid{grid-template-columns:1fr}.shell{grid-template-columns:1fr}.side{flex-direction:row;align-items:center;overflow:auto;padding:12px}.brand{padding:0 12px;font-size:18px}.nav{white-space:nowrap;font-size:12px}.foot{display:none}main{padding:25px 15px}}
-.mini-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}.mini-tools input[type=file]{width:min(100%,280px);font-size:12px}.offset{width:94px!important;padding:9px!important}.helper{font-size:12px;color:#67758b;line-height:1.55}.soft-note{font-size:12px;background:#f5f6ff;border:1px solid #e6e7fa;color:#555b86;padding:10px 12px;border-radius:9px}.actions .outline{font-size:13px}.progress-track{height:8px;border-radius:20px;background:#e7ebf6;overflow:hidden;margin:12px 0 5px}.progress-fill{height:100%;background:#6257da;width:0%;transition:width .25s ease}.transcription-helper{font-size:12px;line-height:1.55;color:#748098}.transcription-settings{display:grid;grid-template-columns:1fr 1fr;gap:12px}.status[role=status]{white-space:pre-wrap}@media(max-width:600px){.transcription-settings{grid-template-columns:1fr}}
-
-#video .grid{grid-template-columns:minmax(340px,.75fr) minmax(600px,1.55fr)}
-.galaxy-stage{padding:0!important;min-height:0!important;background:#02030a!important;position:relative;aspect-ratio:16/9}
-.galaxy-canvas{display:block;width:100%;height:100%;aspect-ratio:16/9;border-radius:14px;background:#02030a}
-.galaxy-canvas:fullscreen{width:100vw;height:100vh;object-fit:contain;border-radius:0;background:#02030a}
-.galaxy-hint{font-size:12px;color:#8a92ab;margin-top:11px;line-height:1.6}
-@media(max-width:1150px){#video .grid{grid-template-columns:1fr}}
-@media(prefers-reduced-motion:reduce){.progress-fill{transition:none}}
-</style></head><body>
-<div class="shell"><aside class="side"><div class="brand">♪ Lyra<span>.</span></div><button class="nav active" data-tab="studio">◫ &nbsp; Studio</button><button class="nav" data-tab="separate">◉ &nbsp; Separate Audio</button><button class="nav" data-tab="video">▣ &nbsp; Lyric Video</button><div class="foot">PERSONAL CREATIVE WORKSPACE<br>LYRA STUDIO · MVP</div></aside>
-<main><div class="top"><div><div class="muted">Workspace / <span id="crumb">Studio</span></div><h1 id="pageTitle">Your creative studio</h1></div><span class="pill">Local workspace</span></div>
-<section class="tab active" id="studio"><p class="sub">Everything you need to turn a song into a karaoke experience.</p><div class="grid"><div class="stack"><div class="card"><h2>Start with a song</h2><div class="drop"><div style="font-size:26px;color:#6863d6">♫</div><strong>Choose your audio file</strong><div class="muted" style="margin-top:8px">MP3, WAV, FLAC, M4A or OGG</div><input id="audioFile" type="file" accept="audio/*"></div><div id="songName" class="status">No song selected</div><audio id="audio" controls></audio><div class="actions"><button class="button" id="goSeparate">Separate vocals</button><button class="outline" id="goVideo">Create lyric video</button></div></div><div class="card"><h2>Workflow</h2><p class="tag">01 &nbsp; Upload your music</p><p class="tag">02 &nbsp; Separate vocals and instrumental (optional)</p><p class="tag">03 &nbsp; Paste timed lyrics, pick colors, export</p></div></div><div class="card"><h2>Live karaoke preview</h2><div class="stage galaxy-stage" id="studioStage"><canvas class="galaxy-canvas" id="studioGalaxyCanvas" width="1280" height="720" aria-label="Live galaxy karaoke preview with four lyric columns"></canvas></div><p class="status">Preview updates while the song is playing.</p></div></div></section>
-<section class="tab" id="separate"><p class="sub">Separate lead vocals from the music with professional AI models on the Railway processing service.</p><div class="grid"><div class="card"><h2>Stem separation</h2><p class="tag">Upload your original audio in Studio, then choose a separation model. Outputs are lossless WAV files. AI models run on a separate processing service, not this Vercel frontend.</p><label class="field">Separation model<select id="model"><option value="instrumental_clean">Best for karaoke · Clean RoFormer ensemble (recommended)</option><option value="instrumental_full">Full instrumental · preserve instruments</option><option value="instrumental_balanced">Balanced instrumental · less artifact risk</option><option value="karaoke">Karaoke ensemble · lead vocal removal</option><option value="vocal_balanced">Vocal isolation · balanced ensemble</option><option value="roformer_hq">BS-RoFormer · single model</option><option value="kim_vocal_2">Kim Vocal 2 · legacy option</option><option value="demucs_ft">Demucs fine-tuned · fallback</option></select></label><label class="field">Private processing key<input id="separationKey" type="password" autocomplete="off" placeholder="From Railway → Lyra Studio Audio → Variables"></label><button class="button" id="runSeparation">Separate vocals & instrumental</button><div class="status" id="separationStatus">Dedicated Railway audio worker is being deployed. Enter your private processing key to start once the service is healthy.</div><div class="actions" id="downloads"></div></div><div class="card"><h2>What you'll get</h2><p><strong>Vocals.wav</strong><br><span class="tag">Singer's voice with the music reduced.</span></p><p><strong>Instrumental.wav</strong><br><span class="tag">Instrumental backing track, perfect for karaoke.</span></p><p class="tag">WAV avoids further compression but cannot undo artifacts introduced by separation. Compare Clean vs Full instrumental on important sections.</p></div></div></section>
-<section class="tab" id="video"><p class="sub">Build a lyric video with real-time text highlighting and a customizable backdrop.</p><div class="grid"><div class="stack"><div class="card"><h2>Lyrics & timing</h2><p class="tag">Turn the vocals-only WAV from UVR into timed lyrics, completely in your browser. No processing key, no paid server.</p>
-<div class="soft-note"><strong>For best accuracy:</strong> use UVR's <strong>Vocals.wav</strong>, NOT the instrumental. Your karaoke backing track can stay loaded separately in Studio.</div>
-<label class="field">UVR vocals-only audio <input id="lyricAudioFile" type="file" accept="audio/*,.wav,.mp3,.flac,.m4a,.ogg"></label>
-<div class="transcription-settings"><label class="field">Speech recognition model
-<select id="lyricModel"><option value="tiny-en">English · Fast (Whisper Tiny)</option><option value="base-en">English · Better accuracy (Whisper Base)</option><option value="tiny-multi">Multilingual · Whisper Tiny</option></select></label>
-<label class="field">Audio source
-<select id="lyricSource"><option value="vocals">Vocals file above (recommended)</option><option value="studio">Audio uploaded in Studio</option></select></label></div>
-<div class="actions"><button class="button" id="autoTiming">✦ Generate timed lyrics</button><button class="outline" id="cancelTiming" disabled>Cancel</button></div>
-<div class="progress-track" role="progressbar" aria-label="Lyric transcription progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="timingProgressTrack"><div class="progress-fill" id="timingProgress"></div></div>
-<p class="transcription-helper" id="timingProgressLabel">Ready. The first run downloads an AI speech model; subsequent runs may reuse the browser cache. Singing recognition is approximate.</p><div class="mini-tools"><label class="field" style="margin:0">Import SRT / LRC <input type="file" id="lyricFile" accept=".srt,.lrc,.txt,text/plain"></label></div><div class="soft-note">Use your own lyrics. <strong>Align to vocals</strong> matches these exact words to the singing; it never replaces your text with AI guesses.</div><label class="field">Timed lyrics<textarea id="lrc" spellcheck="false" placeholder="[00:05.00]First line of your song&#10;[00:09.00]Second line of your song&#10;[00:13.00]Keep singing along"></textarea></label><div class="actions"><button class="outline" id="alignLyrics">Align supplied lyrics to vocals</button><button class="outline" id="sample">Use example lyrics</button><button class="outline" id="apply">Apply lyrics</button></div><div class="mini-tools"><label class="field" style="margin:0">Timing shift (seconds)<input id="timeShift" class="offset" type="number" value="0" min="-30" max="30" step="0.1"></label><button class="outline" id="shiftTiming">Apply shift</button><button class="outline" id="saveLrc">Download LRC</button><button class="outline" id="saveSrt">Download SRT</button></div><p class="helper">Timing is AI-estimated. Check repeated verses and harmonies before exporting.</p></div><div class="card"><h2>Appearance</h2><div class="colorrow"><label class="field">Word highlight<input type="color" id="activeColor" value="#c5b9ff"></label><label class="field">Background style<select id="backgroundMode"><option value="galaxy">Black Galaxy Loop (default)</option><option value="solid">Solid dark color</option></select></label></div><div class="colorrow"><label class="field">Solid background color<input type="color" id="bgColor" value="#03040a"></label><label class="field">Inactive lyric color<input type="color" id="nextColor" value="#dddbee"></label></div></div></div><div class="stack"><div class="card"><h2>Karaoke canvas <span class="count">16:9</span></h2><div class="stage galaxy-stage" id="videoStage"><canvas class="galaxy-canvas" id="videoGalaxyCanvas" width="1280" height="720" aria-label="Animated black galaxy lyric video with four readable lyric columns"></canvas></div><div class="timeline"><span id="time">00:00</span><span>Syncs with studio audio</span></div><div class="actions"><button class="button" id="export">Export WebM video</button><button class="outline" id="fullPreview">Fullscreen preview</button></div><div class="galaxy-hint">Four large lyric columns, smooth looping stars, and word-by-word highlights. The exported video uses the same design as the preview.</div><div class="status" id="videoStatus">Start playback in Studio to preview lyric timing. Export uses real-time browser recording.</div></div></div></div></section>
-</main></div>
-<script src="/alignment.js"></script><script src="/galaxy-template.js?v=1"></script><script>
-const $=id=>document.getElementById(id),audio=$('audio');let file=null,vocalsFile=null,lines=[],recording=false,raf=0,generatedWords=[],timingWorker=null,timingRunning=false,rejectTimingJob=null,timingEpoch=0;
-const titles={studio:'Your creative studio',separate:'Separate your audio',video:'Create your lyric video'};
-function tab(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id===name));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));$('pageTitle').textContent=titles[name];$('crumb').textContent=name==='separate'?'Separate Audio':name==='video'?'Lyric Video':'Studio'}
-document.querySelectorAll('.nav').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
-async function probeAudioWorker(){
-  const node=$('separationStatus');
-  if(!file)node.textContent='Upload a song in Studio before processing.';
-  try {
-    const response=await fetch('https://lyra-audio-worker-production.up.railway.app/api/health',{cache:'no-store'});
-    if(!response.ok)throw Error('not healthy');
-    const data=await response.json();
-    if(data.status==='ready')node.textContent='Audio worker is online. Choose a model, enter your private processing key, then start separation.';
-    else if(data.status==='insufficient_memory')node.textContent='Audio backend is online, but Railway limits it to '+(data.memory_limit_gb||'1')+' GB RAM. High-quality RoFormer needs at least '+data.min_recommended_memory_gb+' GB; your current Railway plan caps this service at 1 GB. A plan upgrade or local processing is required.';
-    else node.textContent='Audio worker is starting. Please check the Railway deployment status.';
-  }catch(error){node.textContent='Railway audio worker is not available yet. Check its deployment status before processing.'}
-}
-document.querySelector('[data-tab="separate"]').addEventListener('click',probeAudioWorker);
-$('goSeparate').onclick=()=>tab('separate');$('goVideo').onclick=()=>tab('video');
-$('audioFile').onchange=e=>{file=e.target.files[0]||null;if(!file)return;if(audio.src.startsWith('blob:'))URL.revokeObjectURL(audio.src);audio.src=URL.createObjectURL(file);$('songName').textContent=file.name;};
-$('lyricAudioFile').onchange=e=>{vocalsFile=e.target.files[0]||null;if(!vocalsFile)return;if(!file){file=vocalsFile;audio.src=URL.createObjectURL(vocalsFile);$('songName').textContent=vocalsFile.name+' (vocal preview)';}$('videoStatus').textContent='Vocals file selected: '+vocalsFile.name+'. Click Generate timed lyrics to begin.';};
-function lyricAudioSource(){return $('lyricSource').value==='studio'?file:vocalsFile}
-function timingProgress(message,percent){$('timingProgressLabel').textContent=message;if(Number.isFinite(percent)){$('timingProgress').style.width=Math.max(0,Math.min(100,percent))+'%';$('timingProgressTrack').setAttribute('aria-valuenow',String(Math.round(percent)));}}
-
-function parseLrc(s){return s.split(/\r?\n/).map(row=>{const m=row.match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)$/);if(!m)return null;return{t:Number(m[1])*60+Number(m[2])+Number(('0.'+(m[3]||'0'))),text:m[4].trim()}}).filter(x=>x&&x.text).sort((a,b)=>a.t-b.t)}
-function lineAt(t){let i=-1;for(let j=0;j<lines.length;j++)if(t>=lines[j].t)i=j;return i}
-
-function drawPreview(id,t){
-  const canvas=$(id),ctx=canvas.getContext('2d',{alpha:false});
-  LyraGalaxy.draw(ctx,canvas.width,canvas.height,t,lines,{
-    mode:$('backgroundMode').value,background:$('bgColor').value,
-    highlight:$('activeColor').value,upcoming:$('nextColor').value,
-    galaxyTime:performance.now()/1000,duration:audio.duration||0
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#202339;background:#f6f7fc}
+*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer}
+button:disabled{opacity:.46;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #9992ef;outline-offset:2px}
+.layout{width:min(100% - 44px,1470px);margin:0 auto;padding:30px 0 70px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}
+.brand{font-size:23px;font-weight:850;letter-spacing:-1.1px;color:#4945a8}.brand b{color:#8f7dee}
+.eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:#898aa3;margin-bottom:6px}
+h1{font-size:clamp(26px,3vw,39px);letter-spacing:-1.6px;margin:0 0 6px}
+.sub{font-size:14px;color:#85899d;margin:0}
+.workspace{display:grid;grid-template-columns:minmax(330px,.86fr) minmax(530px,1.54fr);gap:23px;align-items:start}
+.steps{display:grid;gap:14px}
+.card,.preview-card{background:#fff;border:1px solid #e7e8f1;border-radius:19px;padding:22px;box-shadow:0 9px 28px rgba(25,26,63,.03)}
+.stephead{display:flex;gap:12px;align-items:center;margin-bottom:13px}
+.number{background:#eeedfc;color:#5750be;border-radius:11px;width:34px;height:34px;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+h2{font-size:16px;letter-spacing:-.4px;margin:0}.detail{font-size:12px;line-height:1.5;color:#8a8ea1;margin:3px 0 0}
+.pick{width:100%;display:flex;gap:12px;align-items:center;justify-content:space-between;border:1.5px dashed #cbcde8;background:#fbfaff;border-radius:12px;padding:13px 14px;cursor:pointer;text-align:left}
+.pick strong{font-size:13px;color:#48445c}.pick span{font-size:12px;color:#8b8aa1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px}
+.pick input{display:none}
+.btn{background:#514aca;color:#fff;border:0;border-radius:11px;padding:12px 17px;font-weight:760;font-size:13px;min-height:44px}
+.btn:hover:not(:disabled){background:#403bb1}
+.secondary{background:#f1f0fb;color:#504a9e;border:1px solid #e8e6f7}
+.secondary:hover:not(:disabled){background:#e9e7f8}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:11px}
+.message{font-size:12px;color:#757990;line-height:1.5;margin-top:10px;white-space:pre-wrap}
+.error{color:#b23558}
+.hidden{display:none!important}
+.progress{height:7px;background:#eeedf9;border-radius:20px;overflow:hidden;margin-top:12px}
+.progress>div{width:0%;height:100%;background:#7164dc;transition:width .2s}
+label.field{display:grid;gap:6px;color:#50546a;font-size:12px;font-weight:700}
+.field input,.field select,.field textarea,textarea{width:100%;border:1px solid #dce0ef;border-radius:10px;padding:10px 11px;background:#fff;color:#2f344c}
+input[type=number]{max-width:120px}
+textarea{min-height:105px;font:12px/1.65 ui-monospace,SFMono-Regular,monospace;resize:vertical}
+.smallgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+details{margin-top:12px;border-top:1px solid #eef0f5;padding-top:11px}
+summary{cursor:pointer;font-size:12px;font-weight:700;color:#63668b}
+details p{font-size:12px;color:#81889b;line-height:1.55}
+.preview-card{padding:18px;position:sticky;top:20px}
+.preview-header{display:flex;align-items:center;justify-content:space-between;padding:3px 3px 13px;gap:10px}
+.preview-header h2{font-size:17px}
+.badge{font-size:11px;color:#7779a2;background:#f1f0fa;border-radius:50px;padding:6px 10px}
+.video{width:100%;aspect-ratio:16/9;background:#03040a;border-radius:14px;display:block}
+.video:fullscreen{width:100vw;height:100vh;object-fit:contain;background:#03040a;border-radius:0}
+.player{margin-top:14px;width:100%;height:42px}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.controls .btn{flex:1}
+.timer{margin-left:auto;font-variant-numeric:tabular-nums;font-size:12px;color:#858ba0}
+.mini{font-size:12px;color:#83899d;margin-top:12px;line-height:1.55}
+.wide{width:100%}.finished{color:#376947}
+@media(max-width:1020px){.workspace{grid-template-columns:1fr}.preview-card{position:static}.layout{width:min(100% - 26px,720px)}}
+@media(max-width:550px){.layout{padding:20px 0 50px}.card,.preview-card{padding:17px}.smallgrid{grid-template-columns:1fr}.head{align-items:flex-start}.controls .btn{flex:unset}.pick span{max-width:135px}}
+</style>
+</head>
+<body>
+<main class="layout">
+<header class="head"><div><div class="brand">♪ Lyra<b>.</b></div><div class="eyebrow" style="margin-top:19px">Your karaoke studio</div><h1>Make your lyric video.</h1><p class="sub">Vocals in. Lyrics synced. Instrumental in. Done.</p></div><span class="badge">Free · In your browser</span></header>
+<div class="workspace">
+  <div class="steps">
+    <section class="card">
+      <div class="stephead"><span class="number">01</span><div><h2>Add your vocals</h2><p class="detail">Use the vocals-only WAV from UVR.</p></div></div>
+      <label class="pick" for="vocalFile"><strong>Choose vocals file</strong><span id="vocalName">No file selected</span><input type="file" accept="audio/*,.wav,.flac,.mp3,.m4a,.ogg" id="vocalFile"></label>
+    </section>
+    <section class="card">
+      <div class="stephead"><span class="number">02</span><div><h2>Get timed lyrics</h2><p class="detail">AI detects the lyrics and their timings.</p></div></div>
+      <div class="row"><button class="btn" id="generate">Generate timed lyrics</button><button class="btn secondary" id="cancel" disabled>Cancel</button></div>
+      <div class="progress" role="progressbar" aria-label="Lyric generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressTrack"><div id="progressFill"></div></div>
+      <div class="message" id="lyricStatus" role="status">Upload vocals, then click Generate.</div>
+      <div id="lyricEditor" class="hidden" style="margin-top:13px">
+        <label class="field">Review your timed lyrics<textarea id="lrc" spellcheck="false" placeholder="[00:05.00]First lyric line"></textarea></label>
+        <div class="row"><button class="btn secondary" id="apply">Apply edits</button><button class="btn secondary" id="saveLrc">Download LRC</button><button class="btn secondary" id="saveSrt">Download SRT</button></div>
+      </div>
+      <details><summary>Already have lyrics? Paste or import them</summary>
+        <p>Paste existing lyrics, then align their timing to the vocals. Use this if AI mishears words.</p>
+        <label class="field">Your lyrics<textarea id="referenceLyrics" spellcheck="false" placeholder="Paste your lyrics here, one line per phrase"></textarea></label>
+        <div class="row"><input id="lyricImport" type="file" accept=".txt,.lrc,.srt"><button class="btn secondary" id="align">Time these lyrics</button></div>
+        <p id="alignStatus"></p>
+      </details>
+    </section>
+    <section class="card">
+      <div class="stephead"><span class="number">03</span><div><h2>Add your instrumental</h2><p class="detail">This is the music in your finished video.</p></div></div>
+      <label class="pick" for="instrumentalFile"><strong>Choose instrumental</strong><span id="instrumentalName">No file selected</span><input type="file" id="instrumentalFile" accept="audio/*,.wav,.flac,.mp3,.m4a,.ogg"></label>
+    </section>
+    <section class="card">
+      <div class="stephead"><span class="number">04</span><div><h2>Ready to play?</h2><p class="detail">Choose a countdown before the music starts.</p></div></div>
+      <div class="smallgrid">
+        <label class="field">Countdown
+        <select id="countdown"><option value="0">No countdown</option><option value="3" selected>3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select></label>
+        <label class="field">Lyrics timing adjustment (sec)<input type="number" id="offset" value="0" step="0.1" min="-30" max="30"></label>
+      </div>
+      <div class="message">Change timing only if the words appear too early or late.</div>
+    </section>
+  </div>
+  <section class="preview-card">
+    <div class="preview-header"><h2>Video preview</h2><span class="badge">16:9 · Galaxy</span></div>
+    <canvas id="videoCanvas" class="video" width="1280" height="720" aria-label="Galaxy karaoke lyrics preview"></canvas>
+    <audio id="audio" class="player" controls preload="metadata"></audio>
+    <div class="controls"><button class="btn secondary" id="preview">Play with countdown</button><button class="btn secondary" id="fullscreen">Fullscreen</button><span class="timer" id="timer">00:00</span></div>
+    <div class="row"><button class="btn wide" id="export">Export karaoke video</button></div>
+    <div class="message" id="exportStatus" role="status">Only lyrics will appear on the video, with the start countdown.</div>
+    <p class="mini">The black galaxy loops automatically. Use your UVR instrumental for the exported audio.</p>
+  </section>
+</div>
+</main>
+<script src="/alignment.js"></script><script src="/galaxy-template.js?v=2"></script>
+<script>
+const $=id=>document.getElementById(id);
+const audio=$('audio');
+let vocals=null,instrumental=null,lines=[],originalLines=[],worker=null,jobReject=null,epoch=0,busy=false,recording=false;
+let countdownDeadline=0,raf=0,activeCountdown=false,playingFromTimer=false;
+let exportAudioCtx=null,exportSource=null,exportDestination=null;
+const status=(id,message,kind)=>{const el=$(id);el.textContent=message;el.classList.toggle('error',kind==='error')};
+const toStamp=t=>{const n=Math.max(0,t);return '['+String(Math.floor(n/60)).padStart(2,'0')+':'+String(Math.floor(n%60)).padStart(2,'0')+'.'+String(Math.round((n%1)*100)).padStart(2,'0')+']'};
+const parseLrc=raw=>raw.split(/\r?\n/).map(row=>{const m=row.match(/^\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\](.*)$/);return m?{t:Number(m[1])*60+Number(m[2])+Number('0.'+(m[3]||'0')),text:m[4].trim()}:null}).filter(x=>x&&x.text).sort((a,b)=>a.t-b.t);
+const groupWords=words=>{
+  const groups=[];let group=[];
+  words.forEach((w,i)=>{const prev=words[i-1];if(group.length&&(group.length>=8||(prev&&w.start-prev.end>1.1))){groups.push(group);group=[]}group.push(w)});
+  if(group.length)groups.push(group);
+  return groups.map(g=>({t:g[0].start,text:g.map(w=>w.text).join(' '),words:g}));
+};
+const adjusted=()=>{const n=Number($('offset').value)||0;return lines.map(l=>({...l,t:Math.max(0,l.t+n),words:l.words?.map(w=>({...w,start:Math.max(0,w.start+n)}))})).sort((a,b)=>a.t-b.t)};
+function render(){
+  const left=activeCountdown?Math.max(0,(countdownDeadline-performance.now())/1000):0;
+  LyraGalaxy.draw($('videoCanvas').getContext('2d',{alpha:false}),1280,720,audio.currentTime||0,adjusted(),{
+    countdown:left,highlight:'#c9b8ff',galaxyTime:performance.now()/1000,
+    duration:audio.duration||0
   });
+  const current=audio.currentTime||0;
+  $('timer').textContent=left>0?'-'+String(Math.ceil(left)):String(Math.floor(current/60)).padStart(2,'0')+':'+String(Math.floor(current%60)).padStart(2,'0');
+  if(activeCountdown&&left<=0&&!playingFromTimer){activeCountdown=false;playingFromTimer=true;audio.play().catch(e=>status('exportStatus','Audio cannot play: '+e.message,'error'))}
+  raf=requestAnimationFrame(render);
 }
-function update(){
-  const t=audio.currentTime||0;
-  const active=document.querySelector('section.tab.active')?.id;
-  if(active==='studio')drawPreview('studioGalaxyCanvas',t);
-  else if(active==='video')drawPreview('videoGalaxyCanvas',t);
-  $('time').textContent=String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0');
+render();
+function setAudio(f){
+  if(audio.src.startsWith('blob:'))URL.revokeObjectURL(audio.src);
+  audio.src=URL.createObjectURL(f);audio.load();
 }
-function loop(){update();raf=requestAnimationFrame(loop)}loop();
-$('apply').onclick=()=>{lines=parseLrc($('lrc').value);generatedWords=[];$('videoStatus').textContent=lines.length?lines.length+' timed lines loaded. Play your song to preview.':'No valid LRC timestamps found.';update()};
-
-function toLrcTime(seconds){const m=Math.floor(seconds/60),ss=Math.floor(seconds%60),cs=Math.floor((seconds%1)*100);return '['+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0')+'.'+String(cs).padStart(2,'0')+']'}
-function groupTimedWords(words){const groups=[];let group=[];for(let i=0;i<words.length;i++){const word=words[i],previous=words[i-1];if(group.length&&(group.length>=7||(previous&&word.start-previous.end>1.1))){groups.push(group);group=[]}group.push(word)}if(group.length)groups.push(group);return groups.map(g=>({t:g[0].start,text:g.map(w=>w.text).join(' '),words:g}))}
-
-async function getVocalSamples(source){
-  if(!source)throw Error('Choose your UVR Vocals.wav above, or select Studio audio as the source.');
-  timingProgress('Decoding '+source.name+' on your device…',2);
-  const context=new AudioContext();
-  let decoded;
-  try{decoded=await context.decodeAudioData(await source.arrayBuffer())}
-  finally{await context.close()}
-  if(decoded.duration>600)throw Error('This browser version supports songs up to 10 minutes.');
-  const offline=new OfflineAudioContext(1,Math.ceil(decoded.duration*16000),16000);
-  const node=offline.createBufferSource();node.buffer=decoded;node.connect(offline.destination);node.start();
-  const rendered=await offline.startRendering();
+function resetPreview(){activeCountdown=false;playingFromTimer=false;audio.pause();audio.currentTime=0}
+$('vocalFile').onchange=e=>{
+  vocals=e.target.files?.[0]||null;if(!vocals)return;
+  $('vocalName').textContent=vocals.name;
+  if(!instrumental){resetPreview();setAudio(vocals)}
+  status('lyricStatus','Ready to generate lyrics from '+vocals.name);
+};
+$('instrumentalFile').onchange=e=>{
+  instrumental=e.target.files?.[0]||null;if(!instrumental)return;
+  $('instrumentalName').textContent=instrumental.name;
+  resetPreview();setAudio(instrumental);
+};
+function progress(msg,p){status('lyricStatus',msg);if(Number.isFinite(p)){$('progressFill').style.width=Math.max(0,Math.min(100,p))+'%';$('progressTrack').setAttribute('aria-valuenow',String(p))}}
+async function samplesFromVocals(){
+  if(!vocals)throw Error('Add a vocals-only WAV in step 1 first.');
+  const ac=new AudioContext();let decoded;
+  try{decoded=await ac.decodeAudioData(await vocals.arrayBuffer())}finally{await ac.close()}
+  if(decoded.duration>600)throw Error('Songs over 10 minutes are not supported yet.');
+  const off=new OfflineAudioContext(1,Math.ceil(decoded.duration*16000),16000);
+  const source=off.createBufferSource();source.buffer=decoded;source.connect(off.destination);source.start();
+  const rendered=await off.startRendering();
   return {samples:rendered.getChannelData(0).slice(),duration:decoded.duration};
 }
-async function transcribeForLyrics(){
-  if(timingRunning)throw Error('Another lyric job is already running.');
-  const source=lyricAudioSource();
-  if(!source)throw Error('Upload UVR vocals-only audio above first (or select Studio audio).');
-  const epoch=++timingEpoch;
-  timingRunning=true;
-  $('autoTiming').disabled=true;$('alignLyrics').disabled=true;$('cancelTiming').disabled=false;
-  timingProgress('Preparing audio…',0);
+async function transcribe(){
+  if(busy)throw Error('A transcription is already running.');
+  if(!vocals)throw Error('Add vocals in step 1 first.');
+  const job=++epoch;busy=true;$('generate').disabled=true;$('align').disabled=true;$('cancel').disabled=false;
+  progress('Decoding your vocals…',2);
   try{
-    const {samples,duration}=await getVocalSamples(source);
-    if(epoch!==timingEpoch)throw Error('Cancelled');
+    const {samples,duration}=await samplesFromVocals();
+    if(job!==epoch)throw Error('Cancelled');
     const words=await new Promise((resolve,reject)=>{
-      rejectTimingJob=reject;
-      const worker=new Worker('/timing-worker.js?v=2',{type:'module'});timingWorker=worker;
-      worker.onmessage=e=>{
-        const data=e.data||{};
-        if(data.error)reject(Error(data.error));
-        else if(Array.isArray(data.words))resolve(data.words);
-        else if(data.status)timingProgress(data.status,data.percent);
-      };
-      worker.onerror=e=>reject(Error(e.message||'Browser model failed. Check your connection and browser console.'));
-      worker.onmessageerror=()=>reject(Error('The browser could not read the AI worker result.'));
-      worker.postMessage({audio:samples,model:$('lyricModel').value},[samples.buffer]);
+      jobReject=reject;
+      worker=new Worker('/timing-worker.js?v=2',{type:'module'});
+      worker.onmessage=e=>{const d=e.data||{};if(d.error)reject(Error(d.error));else if(Array.isArray(d.words))resolve(d.words);else if(d.status)progress(d.status,d.percent)};
+      worker.onerror=e=>reject(Error(e.message||'The speech model could not load.'));
+      worker.postMessage({audio:samples,model:'tiny-en'},[samples.buffer]);
     });
-    if(epoch!==timingEpoch)throw Error('Cancelled');
+    if(job!==epoch)throw Error('Cancelled');
     return {words,duration};
   }finally{
-    rejectTimingJob=null;
-    timingWorker?.terminate();timingWorker=null;
-    timingRunning=false;$('autoTiming').disabled=false;$('alignLyrics').disabled=false;$('cancelTiming').disabled=true;
+    jobReject=null;worker?.terminate();worker=null;busy=false;
+    $('generate').disabled=false;$('align').disabled=false;$('cancel').disabled=true;
   }
 }
-$('cancelTiming').onclick=()=>{
-  if(!timingRunning)return;
-  timingEpoch++;
-  rejectTimingJob?.(Error('Cancelled'));
-  timingWorker?.terminate();timingWorker=null;
-  timingRunning=false;$('autoTiming').disabled=false;$('alignLyrics').disabled=false;$('cancelTiming').disabled=true;
-  timingProgress('Cancelled. No changes made to existing lyrics.',0);
-  $('videoStatus').textContent='Lyric generation cancelled.';
-};
-$('autoTiming').onclick=async()=>{
+$('cancel').onclick=()=>{if(!busy)return;epoch++;jobReject?.(Error('Cancelled'));worker?.terminate();worker=null;progress('Cancelled. You can start again.',0)};
+function showLyrics(next){lines=next;originalLines=next;$('lrc').value=LyraAlignment.toLrc(next);$('lyricEditor').classList.remove('hidden')}
+$('generate').onclick=async()=>{
   try{
-    const result=await transcribeForLyrics();
-    generatedWords=result.words;lines=groupTimedWords(result.words);
-    $('lrc').value=LyraAlignment.toLrc(lines);
-    timingProgress('Done! Transcribed '+result.words.length+' words. Please correct any misheard lyrics.',100);
-    $('videoStatus').textContent='Generated '+lines.length+' timed lines from '+result.words.length+' detected words. Use Preview to check synchronization. Download SRT or LRC, or edit and apply corrections.';
-    update();
-  }catch(error){if(error?.message!=='Cancelled'){timingProgress('Could not generate lyrics: '+(error.message||error),0);$('videoStatus').textContent='Automatic lyric generation failed: '+(error.message||error)}} 
+    const result=await transcribe();showLyrics(groupWords(result.words));
+    progress('Timed lyrics created. You can edit the words below.',100);
+  }catch(e){if(e.message!=='Cancelled'){progress('Could not make lyrics: '+e.message,0);$('lyricStatus').classList.add('error')}}
 };
-function downloadText(filename,text){const blob=new Blob([text],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000)}
-$('lyricFile').onchange=async e=>{const imported=e.target.files?.[0];if(!imported)return;try{if(imported.size>1024*1024)throw Error('Maximum lyric file size is 1 MB.');const cues=LyraAlignment.parseLyrics(await imported.text());if(!cues.length)throw Error('No lyrics were found in this file.');$('lrc').value=cues.map(l=>toLrcTime(l.t??0)+l.text).join('\n');$('videoStatus').textContent='Imported '+cues.length+' lyric lines from '+imported.name+'. Click Align supplied lyrics to retime them.';}catch(error){$('videoStatus').textContent='Import failed: '+error.message}};
-$('alignLyrics').onclick=async()=>{
-  const cues=LyraAlignment.parseLyrics($('lrc').value);
-  if(!cues.length){$('videoStatus').textContent='Paste lyrics or import SRT/LRC first.';return}
+$('apply').onclick=()=>{const parsed=parseLrc($('lrc').value);if(!parsed.length){status('lyricStatus','Please keep timestamps like [00:12.50] before each line.','error');return}showLyrics(parsed);status('lyricStatus','Your lyric edits are applied.');};
+$('lyricImport').onchange=async e=>{const f=e.target.files?.[0];if(f){$('referenceLyrics').value=await f.text();status('alignStatus','Loaded '+f.name)}};
+$('align').onclick=async()=>{
+  const text=$('referenceLyrics').value.trim();
+  if(!text){status('alignStatus','Paste or import your lyrics first.','error');return}
   try{
-    const {words,duration}=await transcribeForLyrics();
-    const aligned=LyraAlignment.align(cues,words,duration);
-    lines=aligned.lines;generatedWords=words;$('lrc').value=LyraAlignment.toLrc(lines);
-    timingProgress('Aligned '+aligned.matched+' of '+aligned.total+' words. Review timing.',100);
-    $('videoStatus').textContent='Aligned '+aligned.total+' lyric words ('+Math.round(aligned.confidence*100)+'% directly matched). Original words preserved; review repeated choruses.';
-    update();
-  }catch(error){if(error?.message!=='Cancelled'){timingProgress('Alignment failed: '+(error.message||error),0);$('videoStatus').textContent='Alignment failed: '+(error.message||error)}}
+    const {words,duration}=await transcribe();
+    const aligned=LyraAlignment.align(LyraAlignment.parseLyrics(text),words,duration);
+    showLyrics(aligned.lines);
+    progress('Your lyrics are aligned. Review timing before exporting.',100);
+    status('alignStatus',Math.round(aligned.confidence*100)+'% of words directly matched.');
+  }catch(e){if(e.message!=='Cancelled')status('alignStatus','Could not align: '+e.message,'error')}
 };
-$('shiftTiming').onclick=()=>{if(!lines.length)return;const shift=Number($('timeShift').value);if(!Number.isFinite(shift)||shift< -30||shift>30){$('videoStatus').textContent='Enter a shift between -30 and +30 seconds.';return;}lines=lines.map(line=>({...line,t:Math.max(0,line.t+shift),words:line.words?.map(w=>({...w,start:Math.max(0,w.start+shift)}))}));$('lrc').value=LyraAlignment.toLrc(lines);$('videoStatus').textContent='Shifted timestamps by '+shift+' seconds.';update()};
-$('saveLrc').onclick=()=>{if(!lines.length){$('videoStatus').textContent='Load or align lyrics first.';return}downloadText('lyra-lyrics.lrc',LyraAlignment.toLrc(lines))};
-$('saveSrt').onclick=()=>{if(!lines.length){$('videoStatus').textContent='Load or align lyrics first.';return}downloadText('lyra-lyrics.srt',LyraAlignment.toSrt(lines,audio.duration||0))};
-$('sample').onclick=()=>{$('lrc').value='[00:02.00]Sing along with Lyra\n[00:06.00]Every word lights up\n[00:10.00]Make this song your own\n[00:14.00]Shine among the stars';$('apply').click()};
-$('bgColor').oninput=update;
-$('backgroundMode').onchange=update;
-$('fullPreview').onclick=()=>{const element=$('videoGalaxyCanvas');if(document.fullscreenElement)document.exitFullscreen();else element.requestFullscreen?.().catch(error=>$('videoStatus').textContent='Fullscreen unavailable: '+error.message)};
-['activeColor','nextColor'].forEach(id=>$(id).oninput=update);
-$('runSeparation').onclick=async()=> {
-  const api='https://lyra-audio-worker-production.up.railway.app';
-  const key=$('separationKey').value.trim();
-  if(!file){$('separationStatus').textContent='Upload a song in Studio first.';return}
-  if(!key){$('separationStatus').textContent='Enter your private processing key from Railway Variables. It is used only for the audio requests.';return}
-  const btn=$('runSeparation');btn.disabled=true;$('downloads').replaceChildren();
-  $('separationStatus').textContent='Uploading audio and running separation. Large ensembles can take several minutes or more.';
-  const form=new FormData();form.append('file',file);form.append('model',$('model').value);
-  const auth={Authorization:'Bearer '+key};
-  try {
-    const status=await fetch(api+'/api/health');
-    if(!status.ok)throw Error('Audio service is not healthy yet.');const details=await status.json();if(details.status==='insufficient_memory')throw Error('The backend is limited to '+details.memory_limit_gb+' GB of RAM. High-quality RoFormer separation requires approximately '+details.min_recommended_memory_gb+' GB or more. Railway says your current service cannot be raised above 1 GB. Use a larger plan or local processing.');
-    const r=await fetch(api+'/api/separate',{method:'POST',headers:auth,body:form});
-    const type=r.headers.get('content-type')||'';
-    const data=type.includes('application/json')?await r.json():{detail:'Server returned '+r.status};
-    if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'Separation failed');
-    for(const [stem,relative] of Object.entries(data.files)){
-      const button=document.createElement('button');
-      button.type='button';button.className='outline';button.textContent='Download '+stem+' WAV';
-      button.onclick=async()=>{
-        button.disabled=true;$('separationStatus').textContent='Downloading '+stem+'…';
-        try{
-          const response=await fetch(api+relative,{headers:auth});
-          if(!response.ok)throw Error('Download failed with status '+response.status);
-          const url=URL.createObjectURL(await response.blob());
-          const link=document.createElement('a');link.href=url;link.download='lyra-'+stem+'.wav';link.click();
-          setTimeout(()=>URL.revokeObjectURL(url),15000);
-          $('separationStatus').textContent='Download started: '+stem+'.wav';
-        }catch(error){$('separationStatus').textContent=error.message}finally{button.disabled=false}
-      };
-      $('downloads').append(button);
-    }
-    $('separationStatus').textContent='Separation complete. Choose a WAV stem to download.';
-  }catch(error){
-    $('separationStatus').textContent='Separation unavailable: '+(error?.message||error)+'. The model may need more memory or compute than this Railway instance provides.';
-  }finally{btn.disabled=false}
+function downloadFile(filename,body){const url=URL.createObjectURL(new Blob([body],{type:'text/plain;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),15000)}
+$('saveLrc').onclick=()=>downloadFile('lyra-lyrics.lrc',LyraAlignment.toLrc(adjusted()));
+$('saveSrt').onclick=()=>downloadFile('lyra-lyrics.srt',LyraAlignment.toSrt(adjusted(),audio.duration||0));
+$('preview').onclick=async()=>{
+  if(!lines.length){status('exportStatus','Generate timed lyrics first.','error');return}
+  if(!audio.src){status('exportStatus','Add an instrumental in step 3.','error');return}
+  resetPreview();
+  const secs=Number($('countdown').value)||0;
+  if(secs){activeCountdown=true;countdownDeadline=performance.now()+secs*1000;status('exportStatus','Countdown started.')}
+  else{await audio.play().catch(e=>status('exportStatus','Playback failed: '+e.message,'error'))}
 };
-
-let exportAudioContext=null,exportAudioSource=null,exportAudioDest=null;
+$('fullscreen').onclick=()=>{const v=$('videoCanvas');if(document.fullscreenElement)document.exitFullscreen();else v.requestFullscreen?.().catch(e=>status('exportStatus','Fullscreen unavailable: '+e.message,'error'))};
+async function audioCaptureStream(){
+  if(!exportAudioCtx){
+    exportAudioCtx=new AudioContext();
+    exportSource=exportAudioCtx.createMediaElementSource(audio);
+    exportDestination=exportAudioCtx.createMediaStreamDestination();
+    exportSource.connect(exportAudioCtx.destination);
+    exportSource.connect(exportDestination);
+  }
+  await exportAudioCtx.resume();
+  return exportDestination.stream;
+}
 $('export').onclick=async()=>{
   if(recording)return;
-  if(!file){$('videoStatus').textContent='Upload the song you want in your karaoke video under Studio first.';return}
-  if(!lines.length){$('videoStatus').textContent='Generate or apply lyrics before exporting.';return}
-  if(!window.MediaRecorder){$('videoStatus').textContent='This browser does not support WebM recording.';return}
-  const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
-  if(!mime){$('videoStatus').textContent='WebM export is not supported by this browser. Try Chrome.';return}
-  const btn=$('export');
-  btn.disabled=true;recording=true;
-  let recorder,frame,context;
+  if(!lines.length){status('exportStatus','Generate timed lyrics in step 2 first.','error');return}
+  if(!instrumental){status('exportStatus','Upload your instrumental in step 3 before exporting.','error');return}
+  if(!window.MediaRecorder){status('exportStatus','This browser does not support WebM export. Try Chrome.','error');return}
+  const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));
+  if(!mime){status('exportStatus','WebM export is not supported in this browser. Try Chrome.','error');return}
+  const button=$('export');button.disabled=true;recording=true;resetPreview();
+  let frame=null,recorder=null,playStarted=false;
   try{
-    const canvas=document.createElement('canvas');
-    canvas.width=1280;canvas.height=720;
+    const stream=await audioCaptureStream();
+    const canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;
     const ctx=canvas.getContext('2d',{alpha:false});
-    const capture=canvas.captureStream(30);
-    if(!exportAudioContext){
-      exportAudioContext=new AudioContext();
-      exportAudioSource=exportAudioContext.createMediaElementSource(audio);
-      exportAudioDest=exportAudioContext.createMediaStreamDestination();
-      exportAudioSource.connect(exportAudioContext.destination);
-      exportAudioSource.connect(exportAudioDest);
-    }
-    context=exportAudioContext;
-    exportAudioDest.stream.getAudioTracks().forEach(track=>capture.addTrack(track));
-    await context.resume();
+    const video=canvas.captureStream(30);
+    for(const track of stream.getAudioTracks())video.addTrack(track);
     const chunks=[];
-    recorder=new MediaRecorder(capture,{mimeType:mime,videoBitsPerSecond:6500000});
-    recorder.ondataavailable=event=>{if(event.data.size>0)chunks.push(event.data)};
-    recorder.onerror=event=>{$('videoStatus').textContent='Recording error: '+(event.error?.message||'Unknown error')};
+    recorder=new MediaRecorder(video,{mimeType:mime,videoBitsPerSecond:6500000});
+    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+    recorder.onerror=e=>status('exportStatus','Recording failed: '+(e.error?.message||'Unknown error'),'error');
     recorder.onstop=()=>{
       cancelAnimationFrame(frame);
-      for(const track of capture.getVideoTracks())track.stop();
+      video.getVideoTracks().forEach(t=>t.stop());
       const blob=new Blob(chunks,{type:mime});
-      if(blob.size){
-        const url=URL.createObjectURL(blob),link=document.createElement('a');
-        link.href=url;link.download='lyra-galaxy-karaoke.webm';link.click();
-        setTimeout(()=>URL.revokeObjectURL(url),30000);
-        $('videoStatus').textContent='Galaxy karaoke video exported!';
-      }else $('videoStatus').textContent='No video data recorded; please try again.';
-      btn.disabled=false;recording=false;
+      if(blob.size){const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='lyra-karaoke.webm';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);status('exportStatus','Your karaoke video has been saved.','success')}
+      else status('exportStatus','No video data was recorded. Try Chrome.','error');
+      recording=false;button.disabled=false;
     };
+    const secs=Number($('countdown').value)||0;
+    const deadline=performance.now()+secs*1000;
+    const currentLines=adjusted(),duration=audio.duration||0;
     const paint=()=>{
-      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,lines,{
-        mode:$('backgroundMode').value,background:$('bgColor').value,
-        highlight:$('activeColor').value,upcoming:$('nextColor').value,
-        duration:audio.duration||0
-      });
+      const left=Math.max(0,(deadline-performance.now())/1000);
+      LyraGalaxy.draw(ctx,1280,720,audio.currentTime||0,currentLines,{countdown:left,duration,highlight:'#c9b8ff',galaxyTime:performance.now()/1000});
+      if(!playStarted&&left<=0){playStarted=true;audio.play().catch(e=>{status('exportStatus','Audio playback failed: '+e.message,'error');if(recorder.state!=='inactive')recorder.stop()})}
       if(recording)frame=requestAnimationFrame(paint);
     };
-    const ended=()=>{if(recorder.state!=='inactive')recorder.stop()};
-    audio.addEventListener('ended',ended,{once:true});
-    audio.pause();audio.currentTime=0;
-    paint();
-    recorder.start(1000);
-    try{await audio.play()}catch(error){if(recorder.state!=='inactive')recorder.stop();throw error}
-    $('videoStatus').textContent='Exporting the 4-column galaxy video in real time. Keep the tab visible until the song ends.';
-  }catch(error){
-    $('videoStatus').textContent='Video export failed: '+(error.message||error);
+    audio.addEventListener('ended',()=>{if(recorder?.state!=='inactive')recorder.stop()},{once:true});
+    recorder.start(1000);paint();
+    status('exportStatus','Recording your video in real time. Keep this tab open until the music ends.');
+  }catch(e){
     cancelAnimationFrame(frame);
-    if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch{}}
-    else{recording=false;btn.disabled=false}
+    status('exportStatus','Export failed: '+e.message,'error');
+    if(recorder?.state==='recording')recorder.stop();
+    else{recording=false;button.disabled=false}
   }
 };
 </script></body></html>
