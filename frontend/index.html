@@ -205,9 +205,9 @@ async function transcribe(){
 }
 $('cancel').onclick=()=>{if(!busy)return;epoch++;jobReject?.(Error('Cancelled'));worker?.terminate();worker=null;progress('Cancelled. You can start again.',0)};
 function parseTimedLyrics(raw){
-  const clean=raw.replace(/^\\uFEFF/,'').replace(/\\r/g,'').trim();
+  const clean=raw.replace(/^\uFEFF/,'').replace(/\r/g,'').trim();
   const timed=[];
-  const blocks=clean.replace(/^WEBVTT\\s*/i,'').split(/\\n\\s*\\n/);
+  const blocks=clean.replace(/^WEBVTT\s*/i,'').split(/\n\s*\n/);
   const parseTime=value=>{
     const bits=value.trim().replace(',','.').split(':');
     if(!bits.length||bits.length>3||bits.some(v=>!Number.isFinite(Number(v))))return NaN;
@@ -215,9 +215,9 @@ function parseTimedLyrics(raw){
   };
   if(clean.includes('-->')){
     for(const block of blocks){
-      const rows=block.split('\\n'),idx=rows.findIndex(r=>r.includes('-->'));
+      const rows=block.split('\n'),idx=rows.findIndex(r=>r.includes('-->'));
       if(idx<0)continue;
-      const [a,b]=rows[idx].split('-->').map(x=>x.trim().split(/\\s+/)[0]);
+      const [a,b]=rows[idx].split('-->').map(x=>x.trim().split(/\s+/)[0]);
       const start=parseTime(a),end=parseTime(b);
       const text=rows.slice(idx+1).join(' ').replace(/<[^>]*>/g,'').trim();
       if(Number.isFinite(start)&&Number.isFinite(end)&&end>start&&text)
